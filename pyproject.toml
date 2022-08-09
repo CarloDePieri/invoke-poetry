@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "invoke-poetry"
+version = "0.1.0"
+description = "A set of tools that make invoke tasks interact better with poetry."
+authors = ["Carlo De Pieri <depieri.carlo@gmail.com>"]
+license = "GPL3.0"
+readme = 'README.md'
+repository = "https://github.com/CarloDePieri/invoke-poetry"
+homepage = "https://github.com/CarloDePieri/invoke-poetry"
+
+packages = [
+  { include = "invoke_poetry" }
+]
+
+keywords = ["python", "invoke", "poetry", "build"]
+
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Build Tools",
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+invoke = "^1.7.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.2"
+isort = "^5.10.1"
+black = "^22.6.0"
+mypy = "^0.971"
+flake8 = "^5.0.4"
+pytest-cov = "^3.0.0"
+tomli = "^2.0.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"

@@ -1,0 +1,7 @@
+.venv
+.idea
+.tests-pytester-temp
+.coverage
+coverage
+.venvs
+**/.pytest_cache
