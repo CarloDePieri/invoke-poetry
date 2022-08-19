@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import Callable
 
 import pytest
 
@@ -42,8 +43,8 @@ def pytester(pytester):
 
 
 @pytest.fixture
-def debugger() -> str:
-    def wrapper(start: bool = True):
+def debug() -> Callable[[bool], str]:
+    def wrapper(start: bool = True) -> str:
         if start:
             debugger_code = (
                 "\timport pydevd_pycharm;pydevd_pycharm.settrace('localhost', port=9000, "

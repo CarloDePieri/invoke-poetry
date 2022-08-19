@@ -15,6 +15,14 @@ from invoke import Runner, Task, task
 #
 # MISC
 #
+class Verbose(Enum):
+    """Enum used to determine the verbosity of the called function."""
+
+    ZERO = 0
+    ONE = 1
+    TWO = 2
+
+
 class Collection(InvokeCollection):
     """Custom invoke Collection that allows for a saner API.
     Waiting for invoke PR#789 https://github.com/pyinvoke/invoke/pull/789"""
@@ -56,10 +64,21 @@ def get_active_local_poetry_env_version() -> Optional[str]:
         return None
 
 
-def pr(cmd, c, echo: bool = True, **kwargs) -> None:
+def pr(cmd, c, verbose_level: Verbose = Verbose.TWO, **kwargs) -> None:
+    """Use inside a poetry_env block to execute command inside the env via 'poetry run'.
+
+    ```python
+    @task
+    def get_version(c):
+        with poetry_venv(c, '3.7'):
+            pr("python --version", c)
+    ```
+    """
     patched_cmd = f"poetry run {cmd}"
-    if echo:
+    if verbose_level == Verbose.TWO:
         info(patched_cmd)
+    if "hide" not in kwargs:
+        kwargs["hide"] = verbose_level == Verbose.ZERO
     c.run(patched_cmd, **kwargs)
 
 
@@ -86,15 +105,18 @@ def get_additional_args_string() -> str:
         return ""
 
 
-def _install_project_dependencies_default_hook(c: Runner, verbose: bool = False) -> None:
-    # TODO move this to verbose levels for the echo and the poetry output
-    if verbose:
+def _install_project_dependencies_default_hook(
+    c: Runner, verbose_level: Verbose = Verbose.TWO
+) -> None:
+    if verbose_level == Verbose.TWO:
         info("poetry install")
-    c.run("poetry install", pty=True)
+    c.run("poetry install", hide=verbose_level == Verbose.ZERO, pty=True)
 
 
-def install_project_dependencies(c: Runner, verbose: bool = False) -> None:
-    Settings.install_project_dependencies_hook(c, verbose)
+def install_project_dependencies(
+    c: Runner, verbose_level: Verbose = Verbose.TWO
+) -> None:
+    Settings.install_project_dependencies_hook(c, verbose_level)
 
 
 class Settings:
@@ -142,12 +164,6 @@ class Settings:
         error("CONFIGURATION ERROR")
 
 
-class Verbose(Enum):
-    ZERO = 0
-    ONE = 1
-    TWO = 2
-
-
 #
 # ENV MANAGEMENT
 #
@@ -178,7 +194,7 @@ def env_use(
 
 
 @contextmanager
-def poetry_venv(c: Runner, python_version: str, verbose_level: Verbose = Verbose.ZERO):
+def poetry_venv(c: Runner, python_version: str = None, verbose_level: Verbose = Verbose.ZERO):
     """Context manager that will execute all commands inside with the selected poetry
     virtualenv.
     It will restore the previous virtualenv (if one was active) after it's done.
@@ -191,6 +207,8 @@ def poetry_venv(c: Runner, python_version: str, verbose_level: Verbose = Verbose
     ```
 
     """
+    if not python_version:
+        python_version = Settings().dev_python_version
     # TODO handle cache
     # Find out if a local poetry env was active
     old_env_python_version = get_active_local_poetry_env_version()
@@ -246,7 +264,7 @@ def task_in_poetry_env_matrix(python_versions: List[str]):
 
     ```python
     @task
-    @task_in_poetry_env_matrix(python_versions: ['3.7', '3.8']
+    @task_in_poetry_env_matrix(python_versions=['3.7', '3.8'])
     def get_version(c):
         c.run("poetry run python --version")
     ```
@@ -358,12 +376,16 @@ def env_use_task(c, python_version=None):
 
 @env.task(name="list")
 def env_list(c):
-    c.run("poetry env list", pty=True)
+    cmd = "poetry env list"
+    info(cmd)
+    c.run(cmd, pty=True)
 
 
 @env.task(name="clean")
 def env_clean(c):
-    c.run("rm -rf .venvs && rm -f .venv")
+    cmd = "rm -rf .venvs && rm -f .venv"
+    info(cmd)
+    c.run(cmd)
     ok("Virtual envs deleted")
 
 
