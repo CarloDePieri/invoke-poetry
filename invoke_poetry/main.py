@@ -3,7 +3,6 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from invoke import Runner
 from invoke.exceptions import UnexpectedExit
-from invoke.runners import Result
 
 from invoke_poetry.collection import PatchedInvokeCollection
 from invoke_poetry.env import (
@@ -63,7 +62,7 @@ def add_sub_collection(
 
 
 @contextmanager
-def poetry_venv(c: Runner, python_version: str = None) -> None:
+def poetry_venv(c: Runner, python_version: Optional[str] = None) -> None:
     """Context manager that will execute all Runner.run() commands inside the selected
     poetry virtualenv.
     It will restore the previous virtualenv (if one was active) after it's done.

@@ -1,3 +1,8 @@
+from time import sleep
+from typing import Optional
+
+from invoke import Runner
+
 from invoke_poetry import add_sub_collection, init_ns, poetry_venv, task_matrix
 
 supported_python_versions = ["3.7", "3.8", "3.9", "3.10"]
@@ -12,25 +17,19 @@ tc, task_t = add_sub_collection(ns, "test")
 
 
 @task
-def tt(c):
-    with poetry_venv(c, python_version="3.8"):
-        print("started")
-        c.run("sleep 2")
-        print("ended")
-
-
-from time import sleep
+def tt(c: Runner) -> None:
+    c.run("echo yo")
 
 
 @task_t(name="dev", default=True)
-def test_dev(c, python_version=None):
+def test_dev(c: Runner, python_version: Optional[str] = None) -> None:
     """Launch all tests. Remember to launch `inv env.init --all` once, first."""
     with poetry_venv(c, python_version=python_version):
         c.run("python --version")
 
 
 @task_t(name="matrix")
-def test_matrix(c):
+def test_matrix(c: Runner) -> None:
     """TODO"""
     task_matrix(
         hook=test_dev,
