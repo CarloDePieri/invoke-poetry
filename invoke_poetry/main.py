@@ -1,442 +1,184 @@
-import signal
-import sys
 from contextlib import contextmanager
-from enum import Enum
-from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-import tomli
-from invoke import Collection as InvokeCollection
-from invoke import Runner, Task, task
+from invoke import Runner
+from invoke.exceptions import UnexpectedExit
+from invoke.runners import Result
 
-# TODO add a config task that creates the poetry.toml
-
-
-#
-# MISC
-#
-class Verbose(Enum):
-    """Enum used to determine the verbosity of the called function."""
-
-    ZERO = 0
-    ONE = 1
-    TWO = 2
+from invoke_poetry.collection import PatchedInvokeCollection
+from invoke_poetry.env import (
+    env,
+    env_activate,
+    get_active_env_version,
+    remember_active_env,
+    validate_env_version,
+)
+from invoke_poetry.logs import error, info, warn
+from invoke_poetry.settings import Settings
+from invoke_poetry.utils import IsInterrupted, capture_signal
 
 
-class Collection(InvokeCollection):
-    """Custom invoke Collection that allows for a saner API.
-    Waiting for invoke PR#789 https://github.com/pyinvoke/invoke/pull/789"""
-
-    def task(self, *args, **kwargs):
-        """
-        Wrap a callable object and register it to the current collection.
-        """
-        maybe_task = task(*args, **kwargs)
-        if isinstance(maybe_task, Task):
-            self.add_task(maybe_task)
-            return maybe_task
-
-        def inner(*b_args, **b_kwargs):
-            configured_task = maybe_task(*b_args, **b_kwargs)
-            self.add_task(configured_task)
-            return configured_task
-
-        return inner
-
-
-def check_python_version(python_version: str):
-    supported_python_versions = Settings().supported_python_versions
-    if python_version not in supported_python_versions:
-        error(
-            f"Unsupported python version: choose between {supported_python_versions}",
-        )
-
-
-def get_active_local_poetry_env_version() -> Optional[str]:
-    """Return the version of the active, local poetry environment's python version"""
-    env_file = Path(".venvs") / "envs.toml"
-    if env_file.is_file():
-        with open(".venvs/envs.toml", "rb") as f:
-            toml_dict = tomli.load(f)
-            env_data = list(toml_dict.values())[0]
-            return env_data["minor"]
-    else:
-        return None
-
-
-def pr(cmd, c, verbose_level: Verbose = Verbose.TWO, **kwargs) -> None:
-    """Use inside a poetry_env block to execute command inside the env via 'poetry run'.
+def init_ns(
+    default_python_version: Optional[str] = None,
+    supported_python_versions: Optional[Iterable[str]] = None,
+    install_project_dependencies_hook: Optional[Callable[..., Any]] = None,
+) -> Tuple[PatchedInvokeCollection, Callable]:
+    """Prepare the root invoke collection and set all required settings.
+    Invoke REQUIRES a root collection specifically named 'ns' in the tasks.py file, so use this function like this:
 
     ```python
+    from invoke_poetry import init_ns
+
+    # make sure the collection returned by init_ns is named 'ns'
+    ns, task = init_ns()
+
     @task
-    def get_version(c):
-        with poetry_venv(c, '3.7'):
-            pr("python --version", c)
+    def my_task(c):
+        c.run("echo 'hello world!'")
     ```
     """
-    patched_cmd = f"poetry run {cmd}"
-    if verbose_level == Verbose.TWO:
-        info(patched_cmd)
-    if "hide" not in kwargs:
-        kwargs["hide"] = verbose_level == Verbose.ZERO
-    c.run(patched_cmd, **kwargs)
+
+    ns = PatchedInvokeCollection()
+
+    # Save specified settings in the Settings namespace
+    Settings().init(
+        default_python_version,
+        supported_python_versions,
+        install_project_dependencies_hook=install_project_dependencies_hook,
+    )
+
+    # inject the env collection
+    ns.add_collection(env)
+
+    return ns, ns.task
 
 
-def get_additional_args() -> List[str]:
-    if "--" not in sys.argv:
-        return []
-    else:
-        delimiter = sys.argv.index("--") + 1
-        return sys.argv[delimiter:]
-
-
-def get_additional_args_string() -> str:
-    def wrap_in_quote(x: str) -> str:
-        # Try to handle quoted arguments
-        if " " in x:
-            return f'"{x}"'
-        else:
-            return x
-
-    args = list(map(wrap_in_quote, get_additional_args()))
-    if args:
-        return " " + " ".join(args)
-    else:
-        return ""
-
-
-def _install_project_dependencies_default_hook(
-    c: Runner, verbose_level: Verbose = Verbose.TWO
-) -> None:
-    if verbose_level == Verbose.TWO:
-        info("poetry install")
-    c.run("poetry install", hide=verbose_level == Verbose.ZERO, pty=True)
-
-
-def install_project_dependencies(
-    c: Runner, verbose_level: Verbose = Verbose.TWO
-) -> None:
-    Settings.install_project_dependencies_hook(c, verbose_level)
-
-
-class Settings:
-
-    install_project_dependencies_hook = _install_project_dependencies_default_hook
-    _dev_python_version: Optional[str] = None
-    _supported_python_versions: Optional[List[str]] = None
-    _configured = False
-
-    @staticmethod
-    def init(
-        ns: Collection,
-        dev_python_version: str,
-        supported_python_versions: List[str],
-        install_project_dependencies_hook: Optional[Callable] = None,
-    ):
-        Settings._configured = True
-        ns.add_collection(env)
-        Settings._dev_python_version = dev_python_version
-        Settings._supported_python_versions = supported_python_versions
-        if install_project_dependencies_hook:
-            Settings.install_project_dependencies_hook = (
-                install_project_dependencies_hook
-            )
-
-    @property
-    def dev_python_version(self) -> str:
-        if not self._configured:
-            self.exit_with_configuration_error()
-        return self._dev_python_version
-
-    @property
-    def supported_python_versions(self) -> List[str]:
-        if not self._configured:
-            self.exit_with_configuration_error()
-        return self._supported_python_versions
-
-    @staticmethod
-    def exit_with_configuration_error():
-        error("CONFIGURATION ERROR", exit_now=False)
-        print(
-            "\n\tRead the module documentation!\n\n"
-            "\tYou need a call to Settings.init( ... ) in your tasks file.\n"
-        )
-        error("CONFIGURATION ERROR")
-
-
-#
-# ENV MANAGEMENT
-#
-
-# Global variable used to handle ctrl+c
-keyboard_interrupted = False
-
-
-def env_use(
-    c: Runner,
-    python_version: Optional[str] = None,
-    link: bool = True,
-    verbose_level: Verbose = Verbose.TWO,
-) -> None:
-    """Activate a poetry virtual environment. Optionally link it to .venv."""
-
-    if not python_version:
-        python_version = Settings().dev_python_version
-
-    quiet_str = " -q" if verbose_level == Verbose.ZERO else ""
-    c.run(f"poetry env use python{python_version}{quiet_str}", pty=True)
-
-    if link:
-        venv_path = c.run("poetry env info -p", hide=True).stdout.rstrip("\n")
-        c.run(f"rm -f .venv && ln -sf {venv_path} .venv")
-
-    ok(f"Env {python_version}{'' } activated", verbose=verbose_level == Verbose.TWO)
+def add_sub_collection(
+    collection: PatchedInvokeCollection, name: str
+) -> Tuple[PatchedInvokeCollection, Callable]:
+    """Convenience function to create a new sub collection in a collection and get access to the new `.task` decorator."""
+    sub = PatchedInvokeCollection(name)
+    collection.add_collection(sub)
+    return sub, sub.task
 
 
 @contextmanager
-def poetry_venv(c: Runner, python_version: str = None, verbose_level: Verbose = Verbose.ZERO):
-    """Context manager that will execute all commands inside with the selected poetry
-    virtualenv.
+def poetry_venv(c: Runner, python_version: str = None) -> None:
+    """Context manager that will execute all Runner.run() commands inside the selected
+    poetry virtualenv.
     It will restore the previous virtualenv (if one was active) after it's done.
 
     ```python
     @task
-    def get_version(c):
-        with poetry_venv(c, '3.7'):
-            c.run("poetry run python --version")
+    def get_version(c, python_version="3.7"):
+
+        with poetry_venv(c, python_version):
+            c.run("python --version")  # will run as 'poetry run python --version'
+
+        c.run("python --version")  # will run normally as 'python --version'
     ```
-
     """
-    if not python_version:
-        python_version = Settings().dev_python_version
-    # TODO handle cache
-    # Find out if a local poetry env was active
-    old_env_python_version = get_active_local_poetry_env_version()
-    old_env_exists = old_env_python_version is not None
-
-    if old_env_exists:
-
-        if python_version != old_env_python_version:
-            # A new env needs to be activated
-            should_activate_new_env = True
-            should_link_new_env = False
-            should_restore_old_env = True
-
-        else:
-            # The already active environment is the right one, do nothing
-            should_activate_new_env = False
-            should_link_new_env = False
-            should_restore_old_env = False
-
-    else:
-        # poetry did not have an environment active
-        old_env_python_version = None
-        should_activate_new_env = True
-        should_link_new_env = True
-        should_restore_old_env = False
-
-    if should_activate_new_env:
-        env_use(
-            c,
-            python_version,
-            link=should_link_new_env,
-            verbose_level=verbose_level,
-        )
+    capture_signal()
 
     try:
-        # inject the python version in the Runner object
-        c.poetry_python_version = python_version
-        # execute the wrapped code block
-        yield
-    finally:
-        if should_restore_old_env:
-            env_use(
-                c,
-                old_env_python_version,
-                link=True,
-                verbose_level=verbose_level,
-            )
+        # validate the given python version
+        python_version = validate_env_version(python_version)
 
+        # remember the active virtual env and come back to it when all is done
+        with remember_active_env(c, quiet=False):
 
-def task_in_poetry_env_matrix(python_versions: List[str]):
-    """A decorator that allows to repeat an invoke task in the specified poetry venvs.
-    Must be called between the @task decorator and the decorated function, like this:
+            # activate the new virtual env, if needed
+            if python_version != get_active_env_version(c):
+                env_activate(c, python_version, link=False)
+                info(f"Activated env: {python_version}")
 
-    ```python
-    @task
-    @task_in_poetry_env_matrix(python_versions=['3.7', '3.8'])
-    def get_version(c):
-        c.run("poetry run python --version")
-    ```
+            # patch the run method inside this context manager
+            c.run_outside = c.run
 
-    """
+            def poetry_run(*args, **kwargs) -> None:
+                if "command" in kwargs:
+                    cmd = kwargs["command"]
+                    command = f"poetry run {cmd}"
+                    del kwargs["command"]
+                else:
+                    command = f"poetry run {args[0]}"
+                return c.run_outside(command=command, **kwargs)
 
-    def wrapper(decorated_function):
-        def task_wrapper(c, *args, **kwargs):
+            c.run = poetry_run
+            try:
+                yield
+            finally:
+                if IsInterrupted.by_user:
+                    # User sent a ctrl-c
+                    warn("Poetry task manually interrupted")
+                # restore the original run method
+                c.run = c.run_outside
+                delattr(c, "run_outside")
+    except (KeyboardInterrupt, UnexpectedExit) as e:
 
-            # Make sure ctrl+c is handled correctly
-            signal.signal(signal.SIGINT, _ctrl_c_handler)
-
-            # Check all proposed python version are valid
-            for version in python_versions:
-                check_python_version(version)
-
-            info("Job matrix started")
-            results = {}
-
-            # Define a job (it's the decorated function!)
-            def job():
-                decorated_function(c, *args, **kwargs)
-
-            # For every python version, execute the job
-            for version in python_versions:
-                results[version] = _execute_job(c, version, job)
-
-            # Print a final report
-            _print_job_matrix_report(results, python_versions)
-
-        return task_wrapper
-
-    return wrapper
-
-
-def _execute_job(c: Runner, version: str, job: Callable) -> str:
-    """Execute the defined job in the selected poetry env, returning the result
-    as a string."""
-    global keyboard_interrupted
-
-    if not keyboard_interrupted:
-        try:
-            with poetry_venv(c, version):
-                info(f"Venv {version}: enabled")
-                job()
-            ok(f"Venv {version}: success")
-            return "success"
-
-        except (Exception,):
-            if keyboard_interrupted:
-                error(f"Venv {version}: INTERRUPTED", exit_now=False)
-                return "interrupted"
+        if IsInterrupted.by_user:
+            if not TaskMatrix.running:
+                # If the user interrupted a single job, exit now with an error message
+                error("User aborted!", exit_now=True)
             else:
-                error(f"Venv {version}: FAILED", exit_now=False)
-                return "failure"
-    else:
-        return "skipped"
+                # Raise the error so that it can be caught by the matrix logic
+                raise e
+        else:
+            # This was not a user interrupt, so it should simply raise the error
+            raise e
 
 
-def _ctrl_c_handler(_, __) -> None:
-    """When ctrl-c is captured, set the 'keyboard_interrupted' global variable."""
-    global keyboard_interrupted
-    keyboard_interrupted = True
-    raise KeyboardInterrupt
+def install_project_dependencies(c: Runner, *args, **kwargs) -> Any:
+    """A convenience function to call the install_project_dependencies hook (either the custom or the default one).
+    It will pass forward every argument."""
+    return Settings.install_project_dependencies_hook(c, *args, **kwargs)
 
 
-def _print_job_matrix_report(
-    results: Dict[str, str], python_versions: List[str]
+class TaskMatrix:
+
+    jobs: Dict[str, str] = {}
+    running = False
+
+    @staticmethod
+    def print_report():
+        print(TaskMatrix.jobs)
+
+    @staticmethod
+    def reset():
+        TaskMatrix.running = False
+        TaskMatrix.jobs = {}
+
+
+def task_matrix(
+    hook: Callable,
+    hook_args_builder: Callable[[str], Tuple[List, Dict]],
+    task_names: List[str],
 ) -> None:
-    """Print a report at the end of a matrix job run."""
-    # Print the matrix result
-    info("Job matrix result:")
-    for venv in python_versions:
-        state = results[venv]
-        color = {
-            "success": Colors.OKGREEN,
-            "interrupted": Colors.FAIL,
-            "failure": Colors.FAIL,
-            "skipped": Colors.OKBLUE,
-        }[state]
-        print(f"\t{color} - python{venv}: {state}{Colors.ENDC}")
-    # Print a final result message
-    results_values = results.values()
-    if "failure" in results_values:
-        error("Failed")
-    elif "interrupted" in results_values:
-        error("Interrupted")
-    elif "skipped" in results_values:
-        warn("Done (but some job skipped!)")
-    else:
-        ok("Done")
+    """TODO"""
 
+    capture_signal()
+    TaskMatrix.running = True
 
-#
-# ENV TASKS
-#
-env = Collection("env")
+    for name in task_names:
+        try:
+            if IsInterrupted.by_user:
+                warn(f"task {name}: SKIPPED")
+                TaskMatrix.jobs[name] = "skipped"
+            else:
+                info(f"task {name}: RUNNING")
+                hook_args, hook_kwargs = hook_args_builder(name)
+                hook(*hook_args, **hook_kwargs)
+                TaskMatrix.jobs[name] = "success"
+                info(f"task {name}: SUCCESS")
+        except (BaseException,) as e:
+            if not IsInterrupted.by_user:
+                print(e)
+                error(f"task {name}: FAILED", exit_now=False)
+                TaskMatrix.jobs[name] = "failed"
+            else:
+                warn(f"task {name}: INTERRUPTED")
+                TaskMatrix.jobs[name] = "interrupted"
+                IsInterrupted.by_user = True
 
-
-@env.task(name="use", default=True)
-def env_use_task(c, python_version=None):
-
-    if not python_version:
-        python_version = Settings().dev_python_version
-
-    check_python_version(python_version)
-    env_use(c, python_version)
-
-
-@env.task(name="list")
-def env_list(c):
-    cmd = "poetry env list"
-    info(cmd)
-    c.run(cmd, pty=True)
-
-
-@env.task(name="clean")
-def env_clean(c):
-    cmd = "rm -rf .venvs && rm -f .venv"
-    info(cmd)
-    c.run(cmd)
-    ok("Virtual envs deleted")
-
-
-@env.task(name="rebuild")
-def env_rebuild(c):
-
-    s = Settings()
-    supported_python_versions = s.supported_python_versions
-    dev_python_version = s.dev_python_version
-
-    env_clean(c)
-    for venv in supported_python_versions:
-        if venv != dev_python_version:
-            env_use(c, venv, link=False, verbose_level=Verbose.ONE)
-            install_project_dependencies(c)
-    env_use(c, dev_python_version, link=True, verbose_level=Verbose.ONE)
-    install_project_dependencies(c)
-    ok("Virtual envs rebuilt")
-
-
-#
-# LOGGING
-#
-class Colors:
-    HEADER = "\033[95m"
-    OKBLUE = "\033[94m"
-    OKCYAN = "\033[96m"
-    OKGREEN = "\033[92m"
-    WARNING = "\033[93m"
-    FAIL = "\033[91m"
-    ENDC = "\033[0m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
-
-
-def ok(msg, verbose: bool = True):
-    if verbose:
-        print(f"{Colors.OKGREEN}{Colors.BOLD}inv{Colors.ENDC} > {msg}")
-
-
-def info(msg, verbose: bool = True):
-    if verbose:
-        print(f"{Colors.OKCYAN}{Colors.BOLD}inv{Colors.ENDC} > {msg}")
-
-
-def warn(msg, verbose: bool = True):
-    if verbose:
-        print(f"{Colors.WARNING}{Colors.BOLD}inv{Colors.ENDC} > {msg}")
-
-
-def error(msg, exit_now: bool = True) -> None:
-    print(f"{Colors.FAIL}{Colors.BOLD}inv{Colors.ENDC} > {msg}")
-    if exit_now:
-        exit(1)
+    TaskMatrix.print_report()
+    TaskMatrix.reset()

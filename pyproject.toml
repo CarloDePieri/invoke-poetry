@@ -42,3 +42,15 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.isort]
 profile = "black"
+
+[tool.mypy]
+enable_error_code = [
+  "ignore-without-code",
+]
+show_error_codes = "True"
+warn_unused_ignores = "True"
+strict = "True"
+
+[[tool.mypy.overrides]]
+module = "invoke.*"
+ignore_missing_imports = "True"

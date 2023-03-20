@@ -3,34 +3,6 @@ from pathlib import Path
 from _pytest.config import ExitCode
 
 
-class TestACollection:
-    """Test: A Collection..."""
-
-    def test_should_allow_to_easily_add_tasks(self, pytester, inv):
-        """A collection should allow to easily add tasks."""
-
-        task_name = "hello"
-        task_out = "hi!"
-
-        # language=python prefix="if True:" # IDE language injection
-        task_source = f"""
-            from invoke_poetry import Collection
-            
-            ns = Collection()
-            
-            @ns.task(name="{task_name}")
-            def test_task(c):
-                c.run("echo '{task_out}'")
-            """
-        pytester.makepyfile(tasks=task_source)
-
-        result = pytester.run(inv, "-l")
-        result.stdout.re_match_lines([r"Available tasks:", r".*" + task_name])
-
-        result = pytester.run(inv, task_name)
-        result.stdout.re_match_lines([r"" + task_out])
-
-
 class TestEnvUse:
     """Test: env_use..."""
 
