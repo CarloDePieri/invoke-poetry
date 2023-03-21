@@ -19,10 +19,10 @@ class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
     def task(
         self, *args: Any, **kwargs: Any
     ) -> Union[InvokeTask, Callable[[F], InvokeTask]]:
-        """
-        TODO
+        """Register a task.
 
-        And document or fix the 'nothing can't be called'
+        By supporting python 3.7, this is the better we can annotate this decorator. Mypy will not complain most of the
+        time, but it may need some convincing in certain specific cases (see 'nothing cannot be called':
 
         @task(name="dev")
         def dev(c: Runner) -> int:
