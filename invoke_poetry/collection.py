@@ -1,9 +1,12 @@
 import inspect
-from typing import Any, Callable, Union
+from typing import Any, Callable, TypeVar, Union, cast
 from unittest.mock import patch
 
 from invoke import Collection as InvokeCollection
 from invoke import Task, task
+
+InvokeTask = TypeVar("InvokeTask", bound=Task)
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
@@ -13,25 +16,39 @@ class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
     - Allows to use type annotation on tasks, using a patched Task class; waiting for https://github.com/pyinvoke/invoke/pull/606
     """
 
-    def task(self, *args: Any, **kwargs: Any) -> Union[Task, Callable[..., Task]]:
+    def task(
+        self, *args: Any, **kwargs: Any
+    ) -> Union[InvokeTask, Callable[[F], InvokeTask]]:
         """
-        Wrap a callable object and register it to the current collection.
+        TODO
+
+        And document or fix the 'nothing can't be called'
+
+        @task(name="dev")
+        def dev(c: Runner) -> int:
+            return 42
+
+        dev(c)  # broken for mypy
+        cast(Callable[[Runner], int], dev)(c)  # working
         """
 
-        maybe_task: Union[Task, Callable[..., Any]] = task(
-            *args, klass=PatchedTask, **kwargs
-        )
+        def _added_task(_task: Task) -> InvokeTask:
+            """Register the task and returns a cast object, useful for mypy."""
+            self.add_task(_task)
+            return cast(InvokeTask, _task)
+
+        maybe_task = task(*args, klass=PatchedTask, **kwargs)
 
         if isinstance(maybe_task, Task):
-            self.add_task(maybe_task)
-            return maybe_task
+            # called by @task , return the Task callable object
+            return _added_task(maybe_task)
 
-        def inner(*b_args: Any, **b_kwargs: Any) -> Task:
-            configured_task = maybe_task(*b_args, **b_kwargs)
-            self.add_task(configured_task)
-            return configured_task
+        else:
+            # called by @task() , return the function that will return the Task callable object
+            def wrapper(func: F) -> InvokeTask:
+                return _added_task(maybe_task(func))
 
-        return inner
+            return wrapper
 
 
 class PatchedTask(Task):  # type: ignore[misc]

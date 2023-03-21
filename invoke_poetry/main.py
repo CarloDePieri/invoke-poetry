@@ -47,7 +47,7 @@ def init_ns(
     )
 
     # inject the env collection
-    ns.add_collection(env)
+    # ns.add_collection(env)
 
     return ns, ns.task
 
