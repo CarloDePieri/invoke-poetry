@@ -50,7 +50,7 @@ class Settings:
         if not self._supported_python_versions:
             self.exit_with_configuration_error("supported_python_versions")
         versions = cast(
-            Iterable[str], self._default_python_version
+            Iterable[str], self._supported_python_versions
         )  # This should be strings at this point
         return versions
 
