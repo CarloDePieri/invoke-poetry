@@ -140,90 +140,88 @@ def remember_active_env(c: Runner, quiet=True):
 # INVOKE ENV COLLECTION
 #
 
-# env = PatchedInvokeCollection("env")
-#
-#
-# @env.task(
-#     name="use",
-#     default=True,
-#     help={
-#         "python_version": "target python version",
-#         "no_link": "avoid creating a link to .venv",
-#     },
-# )
-# def env_use_task(
-#     c,
-#     python_version=None,
-#     no_link=False,
-# ):
-#     """Activate a poetry virtual environment. Optionally link it to .venv."""
-#     if not python_version:
-#         info(f"No python version specified, activating default env.")
-#     python_version = validate_env_version(python_version)
-#     env_activate(c, python_version, link=not no_link)
-#     ok(f"Env {python_version} activated.")
-#
-#
-# @env.task(name="list")
-# def env_list_task(c):
-#     """Show all associated venv and the active one."""
-#     info("Poetry virtual environments:")
-#     c.run("poetry env list", pty=True)
-#
-#
-# @env.task(
-#     name="remove",
-#     help={
-#         "python_version": "target associated venv",
-#         "all": "delete all associated venv instead of a specific version",
-#         "rm_link": "also delete the '.venv' link. Default: True",
-#     },
-# )
-# def env_remove_task(c, python_version=None, rm_link=True, all=False):
-#     """Remove the specified python virtualenv.
-#
-#     Either '-p / python-version [version]' or '-a / --all' flags need to be present."""
-#     if all:
-#         for version in Settings().supported_python_versions:
-#             if env_exists(c, version):
-#                 env_remove(c, version, quiet=False, rm_link=rm_link)
-#             else:
-#                 warn(f"Could not find a {version} env to delete.")
-#         ok("Virtual envs deleted")
-#     elif python_version:
-#         if python_version in Settings().supported_python_versions and env_exists(
-#             c, python_version
-#         ):
-#             env_remove(c, python_version, quiet=False, rm_link=rm_link)
-#             ok("Virtual env deleted")
-#         else:
-#             warn(f"Could not find a {python_version} env to delete.")
-#     else:
-#         error(
-#             "Either '-p / python-version [version]' or '-a / --all' flags need to be present."
-#         )
-#
-#
-# @env.task(
-#     name="init",
-#     help={
-#         "python_version": "target associated venv",
-#         "all": "init all supported venv instead of a specific version",
-#         "link": "link the venv to '~/.venv'. Default: True",
-#         "rebuild": "recreate existing venvs. Default: False",
-#     },
-# )
-# def env_init_task(c, python_version=None, link=True, all=False, rebuild=False):
-#     """Create a venv and install the project dependencies using a customizable install_project_dependencies_hook.
-#
-#     By default, the hook run 'poetry install' inside the venv."""
-#     with remember_active_env(c, quiet=False):
-#         if all:
-#             for version in reversed(list(Settings().supported_python_versions)):
-#                 env_init(c, version, link, rebuild)
-#         else:
-#             python_version = validate_env_version(python_version)
-#             env_init(c, python_version, link, rebuild)
-#     ok("Done")
+env = PatchedInvokeCollection("env")
 
-env = None
+
+@env.task(
+    name="use",
+    default=True,
+    help={
+        "python_version": "target python version",
+        "no_link": "avoid creating a link to .venv",
+    },
+)
+def env_use_task(
+    c,
+    python_version=None,
+    no_link=False,
+):
+    """Activate a poetry virtual environment. Optionally link it to .venv."""
+    if not python_version:
+        info(f"No python version specified, activating default env.")
+    python_version = validate_env_version(python_version)
+    env_activate(c, python_version, link=not no_link)
+    ok(f"Env {python_version} activated.")
+
+
+@env.task(name="list")
+def env_list_task(c):
+    """Show all associated venv and the active one."""
+    info("Poetry virtual environments:")
+    c.run("poetry env list", pty=True)
+
+
+@env.task(
+    name="remove",
+    help={
+        "python_version": "target associated venv",
+        "all": "delete all associated venv instead of a specific version",
+        "rm_link": "also delete the '.venv' link. Default: True",
+    },
+)
+def env_remove_task(c, python_version=None, rm_link=True, all=False):
+    """Remove the specified python virtualenv.
+
+    Either '-p / python-version [version]' or '-a / --all' flags need to be present."""
+    if all:
+        for version in Settings().supported_python_versions:
+            if env_exists(c, version):
+                env_remove(c, version, quiet=False, rm_link=rm_link)
+            else:
+                warn(f"Could not find a {version} env to delete.")
+        ok("Virtual envs deleted")
+    elif python_version:
+        if python_version in Settings().supported_python_versions and env_exists(
+            c, python_version
+        ):
+            env_remove(c, python_version, quiet=False, rm_link=rm_link)
+            ok("Virtual env deleted")
+        else:
+            warn(f"Could not find a {python_version} env to delete.")
+    else:
+        error(
+            "Either '-p / python-version [version]' or '-a / --all' flags need to be present."
+        )
+
+
+@env.task(
+    name="init",
+    help={
+        "python_version": "target associated venv",
+        "all": "init all supported venv instead of a specific version",
+        "link": "link the venv to '~/.venv'. Default: True",
+        "rebuild": "recreate existing venvs. Default: False",
+    },
+)
+def env_init_task(c, python_version=None, link=True, all=False, rebuild=False):
+    """Create a venv and install the project dependencies using a customizable install_project_dependencies_hook.
+
+    By default, the hook run 'poetry install' inside the venv."""
+    with remember_active_env(c, quiet=False):
+        if all:
+            for version in reversed(list(Settings().supported_python_versions)):
+                env_init(c, version, link, rebuild)
+        else:
+            python_version = validate_env_version(python_version)
+            env_init(c, python_version, link, rebuild)
+    ok("Done")
