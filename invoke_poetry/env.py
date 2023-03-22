@@ -2,9 +2,9 @@ import os
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Generator, Optional
 
-from invoke import Runner
+from invoke import Result, Runner
 
 from invoke_poetry.collection import PatchedInvokeCollection
 from invoke_poetry.logs import error, info, ok, warn
@@ -45,7 +45,7 @@ def env_init(
     env_activate(c, python_version, link)
 
     # Install all dependencies
-    info(f"Installing project dependencies.")
+    info("Installing project dependencies.")
 
     # import here to avoid circular import
     from invoke_poetry.main import install_project_dependencies
@@ -53,7 +53,9 @@ def env_init(
     install_project_dependencies(c, quiet=False)
 
 
-def env_remove(c: Runner, version: str, quiet=False, rm_link=True):
+def env_remove(
+    c: Runner, version: str, quiet: bool = False, rm_link: bool = True
+) -> None:
     """TODO"""
     cmd = f"poetry env remove python{version}"
     if not quiet:
@@ -83,15 +85,17 @@ def env_remove(c: Runner, version: str, quiet=False, rm_link=True):
 def env_exists(c: Runner, version: str) -> bool:
     """TODO"""
     cmd = f"poetry env list | grep {version}"
-    out = c.run(cmd, hide=True, warn=True)
-    return out.ok
+    out: Result = c.run(cmd, hide=True, warn=True)
+    env_found: bool = out.ok
+    return env_found
 
 
 def get_active_env_path(c: Runner) -> Optional[str]:
     """TODO"""
-    result = c.run("poetry env info -p", hide=True, warn=True)
+    result: Result = c.run("poetry env info -p", hide=True, warn=True)
+    stdout: str = result.stdout
     if result.ok:
-        return result.stdout.rstrip("\n")
+        return stdout.rstrip("\n")
     else:
         return None
 
@@ -122,7 +126,9 @@ def validate_env_version(python_version: Optional[str]) -> str:
 
 
 @contextmanager
-def remember_active_env(c: Runner, quiet: bool = True, skip_rollback: bool = False):
+def remember_active_env(
+    c: Runner, quiet: bool = True, skip_rollback: bool = False
+) -> Generator[None, None, None]:
     """A context manager that makes sure to go back to the previously active poetry venv. The rollback can be skipped
     dynamically."""
     if skip_rollback:
@@ -156,20 +162,20 @@ env = PatchedInvokeCollection("env")
     },
 )
 def env_use_task(
-    c,
-    python_version=None,
-    no_link=False,
-):
+    c: Runner,
+    python_version: Optional[str] = None,
+    no_link: bool = False,
+) -> None:
     """Activate a poetry virtual environment. Optionally link it to .venv."""
     if not python_version:
-        info(f"No python version specified, activating default env.")
+        info("No python version specified, activating default env.")
     python_version = validate_env_version(python_version)
     env_activate(c, python_version, link=not no_link)
     ok(f"Env {python_version} activated.")
 
 
 @env.task(name="list")
-def env_list_task(c):
+def env_list_task(c: Runner) -> None:
     """Show all associated venv and the active one."""
     info("Poetry virtual environments:")
     c.run("poetry env list", pty=True)
@@ -183,7 +189,12 @@ def env_list_task(c):
         "rm_link": "also delete the '.venv' link. Default: True",
     },
 )
-def env_remove_task(c, python_version=None, rm_link=True, all=False):
+def env_remove_task(
+    c: Runner,
+    python_version: Optional[str] = None,
+    rm_link: bool = True,
+    all: bool = False,
+) -> None:
     """Remove the specified python virtualenv.
 
     Either '-p / python-version [version]' or '-a / --all' flags need to be present."""
@@ -217,7 +228,13 @@ def env_remove_task(c, python_version=None, rm_link=True, all=False):
         "rebuild": "recreate existing venvs. Default: False",
     },
 )
-def env_init_task(c, python_version=None, link=True, all=False, rebuild=False):
+def env_init_task(
+    c: Runner,
+    python_version: Optional[str] = None,
+    link: bool = True,
+    all: bool = False,
+    rebuild: bool = False,
+) -> None:
     """Create a venv and install the project dependencies using a customizable hook.
 
     By default, the hook run 'poetry install' inside the venv."""

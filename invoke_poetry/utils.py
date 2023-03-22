@@ -1,5 +1,6 @@
 import signal
 from contextlib import contextmanager
+from typing import Any, Generator
 
 delayed_interrupt = False
 
@@ -10,10 +11,10 @@ class IsInterrupted:
 
 
 @contextmanager
-def delay_keyboard_interrupt():
+def delay_keyboard_interrupt() -> Generator[None, None, None]:
     """TODO"""
 
-    def _interrupt(_, __):
+    def _interrupt(_: Any, __: Any) -> None:
         IsInterrupted.delayed = True
 
     original = signal.signal(signal.SIGINT, _interrupt)
@@ -23,7 +24,7 @@ def delay_keyboard_interrupt():
         raise KeyboardInterrupt
 
 
-def ctrl_c_handler(_, __) -> None:
+def ctrl_c_handler(_: Any, __: Any) -> None:
     """When ctrl-c is captured, TODO."""
     # do stuff - this is needed when ctrl-c is pressed when a c.run is executing
     IsInterrupted.by_user = True

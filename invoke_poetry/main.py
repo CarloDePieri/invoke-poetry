@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Callable, Iterable, Optional, Tuple
+from typing import Any, Callable, Generator, Iterable, Optional, Tuple, Union
 
 from invoke import Runner
 from invoke.exceptions import UnexpectedExit
 
-from invoke_poetry.collection import PatchedInvokeCollection
+from invoke_poetry.collection import F, InvokeTask, PatchedInvokeCollection
 from invoke_poetry.env import (
     env,
     env_activate,
@@ -21,10 +21,10 @@ from invoke_poetry.utils import IsInterrupted, capture_signal
 
 
 def init_ns(
-    default_python_version: Optional[str] = None,
+    default_python_version: str,
     supported_python_versions: Optional[Iterable[str]] = None,
     install_project_dependencies_hook: Optional[Callable[..., Any]] = None,
-) -> Tuple[PatchedInvokeCollection, Callable]:
+) -> Tuple[PatchedInvokeCollection, Callable[..., Any]]:
     """Prepare the root invoke collection and set all required settings.
     Invoke REQUIRES a root collection specifically named 'ns' in the tasks.py file, so use this function like this:
 
@@ -32,15 +32,18 @@ def init_ns(
     from invoke_poetry import init_ns
 
     # make sure the collection returned by init_ns is named 'ns'
-    ns, task = init_ns()
+    ns, task = init_ns(default_python_version='3.7')
 
     @task
     def my_task(c):
         c.run("echo 'hello world!'")
     ```
     """
-
     ns = PatchedInvokeCollection()
+
+    # Construct a default supported python versions
+    if not supported_python_versions:
+        supported_python_versions = [default_python_version]
 
     # Save specified settings in the Settings namespace
     Settings().init(
@@ -57,7 +60,9 @@ def init_ns(
 
 def add_sub_collection(
     collection: PatchedInvokeCollection, name: str
-) -> Tuple[PatchedInvokeCollection, Callable]:
+) -> Tuple[
+    PatchedInvokeCollection, Callable[..., Union[InvokeTask, Callable[[F], InvokeTask]]]
+]:
     """Convenience function to create a new sub collection in a collection and get access to the new `.task` decorator."""
     sub = PatchedInvokeCollection(name)
     collection.add_collection(sub)
@@ -67,7 +72,7 @@ def add_sub_collection(
 @contextmanager
 def poetry_venv(
     c: Runner, python_version: Optional[str] = None, restore_venv: bool = True
-) -> None:
+) -> Generator[None, None, None]:
     """Context manager that will execute all Runner.run() commands inside the selected
     poetry virtualenv.
     It will restore the previous virtualenv (if one was active) after it's done, by default.
@@ -99,7 +104,7 @@ def poetry_venv(
             # patch the run method inside this context manager
             c.run_outside = c.run
 
-            def poetry_run(*args, **kwargs) -> None:
+            def poetry_run(*args: Any, **kwargs: Any) -> None:
                 if "command" in kwargs:
                     cmd = kwargs["command"]
                     command = f"poetry run {cmd}"
@@ -132,7 +137,7 @@ def poetry_venv(
             raise e
 
 
-def install_project_dependencies(c: Runner, *args, **kwargs) -> Any:
+def install_project_dependencies(c: Runner, *args: Any, **kwargs: Any) -> Any:
     """A convenience function to call the install_project_dependencies hook (either the custom or the default one).
     It will pass forward every argument."""
     return Settings.install_project_dependencies_hook(c, *args, **kwargs)

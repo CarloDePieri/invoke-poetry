@@ -26,7 +26,7 @@ def warn(msg: str, do_print: bool = True) -> None:
         print(f"{Colors.WARNING}{Colors.BOLD}inv{Colors.ENDC} > {msg}")
 
 
-def error(msg, exit_now: bool = True) -> None:
+def error(msg: str, exit_now: bool = True) -> None:
     print(f"{Colors.FAIL}{Colors.BOLD}inv{Colors.ENDC} > {msg}")
     if exit_now:
         exit(1)
