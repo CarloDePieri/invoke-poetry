@@ -47,6 +47,9 @@ profile = "black"
 enable_error_code = [
   "ignore-without-code",
 ]
+disable_error_code = [
+  "misc"
+]
 show_error_codes = "True"
 warn_unused_ignores = "True"
 strict = "True"

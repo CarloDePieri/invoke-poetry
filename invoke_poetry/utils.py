@@ -30,5 +30,5 @@ def ctrl_c_handler(_, __) -> None:
     raise KeyboardInterrupt
 
 
-def capture_signal():
+def capture_signal() -> None:
     signal.signal(signal.SIGINT, ctrl_c_handler)

@@ -4,24 +4,25 @@ class Colors:
     OKCYAN = "\033[96m"
     OKGREEN = "\033[92m"
     WARNING = "\033[93m"
+    BLUE = "\u001b[34m"
     FAIL = "\033[91m"
     ENDC = "\033[0m"
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
 
 
-def ok(msg, verbose: bool = True):
-    if verbose:
+def ok(msg: str, do_print: bool = True) -> None:
+    if do_print:
         print(f"{Colors.OKGREEN}{Colors.BOLD}inv{Colors.ENDC} > {msg}")
 
 
-def info(msg, verbose: bool = True):
-    if verbose:
+def info(msg: str, do_print: bool = True) -> None:
+    if do_print:
         print(f"{Colors.OKCYAN}{Colors.BOLD}inv{Colors.ENDC} > {msg}")
 
 
-def warn(msg, verbose: bool = True):
-    if verbose:
+def warn(msg: str, do_print: bool = True) -> None:
+    if do_print:
         print(f"{Colors.WARNING}{Colors.BOLD}inv{Colors.ENDC} > {msg}")
 
 

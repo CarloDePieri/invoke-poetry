@@ -1,18 +1,18 @@
-# noinspection PyUnresolvedReferences
+from invoke_poetry.env import remember_active_env
 from invoke_poetry.main import (
-    TaskMatrix,
     add_sub_collection,
     init_ns,
     install_project_dependencies,
     poetry_venv,
-    task_matrix,
 )
+from invoke_poetry.matrix import TaskMatrix, task_matrix
 
 __all__ = [
-    "TaskMatrix",
     "add_sub_collection",
     "init_ns",
     "install_project_dependencies",
     "poetry_venv",
+    "remember_active_env",
+    "TaskMatrix",
     "task_matrix",
 ]

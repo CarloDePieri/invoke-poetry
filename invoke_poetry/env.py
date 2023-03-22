@@ -122,18 +122,22 @@ def validate_env_version(python_version: Optional[str]) -> str:
 
 
 @contextmanager
-def remember_active_env(c: Runner, quiet=True):
-    """A context manager that makes sure to go back to the previously active poetry venv."""
-    old_active_version = get_active_env_version(c)
-    try:
+def remember_active_env(c: Runner, quiet: bool = True, skip_rollback: bool = False):
+    """A context manager that makes sure to go back to the previously active poetry venv. The rollback can be skipped
+    dynamically."""
+    if skip_rollback:
         yield
-    finally:
-        with delay_keyboard_interrupt():
-            active_version = get_active_env_version(c)
-            if old_active_version and active_version != old_active_version:
-                env_activate(c, old_active_version)
-                if not quiet:
-                    info(f"Reactivated env: {old_active_version}")
+    else:
+        old_active_version = get_active_env_version(c)
+        try:
+            yield
+        finally:
+            with delay_keyboard_interrupt():
+                active_version = get_active_env_version(c)
+                if old_active_version and active_version != old_active_version:
+                    env_activate(c, old_active_version)
+                    if not quiet:
+                        info(f"Reactivated env: {old_active_version}")
 
 
 #

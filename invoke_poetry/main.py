@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, Optional, Tuple
 
 from invoke import Runner
 from invoke.exceptions import UnexpectedExit
@@ -13,6 +15,7 @@ from invoke_poetry.env import (
     validate_env_version,
 )
 from invoke_poetry.logs import error, info, warn
+from invoke_poetry.matrix import TaskMatrix
 from invoke_poetry.settings import Settings
 from invoke_poetry.utils import IsInterrupted, capture_signal
 
@@ -62,10 +65,12 @@ def add_sub_collection(
 
 
 @contextmanager
-def poetry_venv(c: Runner, python_version: Optional[str] = None) -> None:
+def poetry_venv(
+    c: Runner, python_version: Optional[str] = None, restore_venv: bool = True
+) -> None:
     """Context manager that will execute all Runner.run() commands inside the selected
     poetry virtualenv.
-    It will restore the previous virtualenv (if one was active) after it's done.
+    It will restore the previous virtualenv (if one was active) after it's done, by default.
 
     ```python
     @task
@@ -84,7 +89,7 @@ def poetry_venv(c: Runner, python_version: Optional[str] = None) -> None:
         python_version = validate_env_version(python_version)
 
         # remember the active virtual env and come back to it when all is done
-        with remember_active_env(c, quiet=False):
+        with remember_active_env(c, quiet=False, skip_rollback=not restore_venv):
 
             # activate the new virtual env, if needed
             if python_version != get_active_env_version(c):
@@ -131,53 +136,3 @@ def install_project_dependencies(c: Runner, *args, **kwargs) -> Any:
     """A convenience function to call the install_project_dependencies hook (either the custom or the default one).
     It will pass forward every argument."""
     return Settings.install_project_dependencies_hook(c, *args, **kwargs)
-
-
-class TaskMatrix:
-
-    jobs: Dict[str, str] = {}
-    running = False
-
-    @staticmethod
-    def print_report():
-        print(TaskMatrix.jobs)
-
-    @staticmethod
-    def reset():
-        TaskMatrix.running = False
-        TaskMatrix.jobs = {}
-
-
-def task_matrix(
-    hook: Callable,
-    hook_args_builder: Callable[[str], Tuple[List, Dict]],
-    task_names: List[str],
-) -> None:
-    """TODO"""
-
-    capture_signal()
-    TaskMatrix.running = True
-
-    for name in task_names:
-        try:
-            if IsInterrupted.by_user:
-                warn(f"task {name}: SKIPPED")
-                TaskMatrix.jobs[name] = "skipped"
-            else:
-                info(f"task {name}: RUNNING")
-                hook_args, hook_kwargs = hook_args_builder(name)
-                hook(*hook_args, **hook_kwargs)
-                TaskMatrix.jobs[name] = "success"
-                info(f"task {name}: SUCCESS")
-        except (BaseException,) as e:
-            if not IsInterrupted.by_user:
-                print(e)
-                error(f"task {name}: FAILED", exit_now=False)
-                TaskMatrix.jobs[name] = "failed"
-            else:
-                warn(f"task {name}: INTERRUPTED")
-                TaskMatrix.jobs[name] = "interrupted"
-                IsInterrupted.by_user = True
-
-    TaskMatrix.print_report()
-    TaskMatrix.reset()

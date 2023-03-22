@@ -1,9 +1,15 @@
 from time import sleep
 from typing import Optional
 
-from invoke import Runner
+from invoke import Result, Runner
 
-from invoke_poetry import add_sub_collection, init_ns, poetry_venv, task_matrix
+from invoke_poetry import (
+    add_sub_collection,
+    init_ns,
+    poetry_venv,
+    remember_active_env,
+    task_matrix,
+)
 
 supported_python_versions = ["3.7", "3.8", "3.9", "3.10"]
 default_python_version = supported_python_versions[0]
@@ -22,20 +28,29 @@ def tt(c: Runner) -> None:
 
 
 @task_t(name="dev", default=True)
-def test_dev(c: Runner, python_version: Optional[str] = None) -> None:
+def test_dev(
+    c: Runner, python_version: Optional[str] = None, restore_venv: bool = True
+) -> Result:
     """Launch all tests. Remember to launch `inv env.init --all` once, first."""
-    with poetry_venv(c, python_version=python_version):
-        c.run("python --version")
+    with poetry_venv(c, python_version=python_version, restore_venv=restore_venv):
+        result = c.run("python --version")
+    return result
 
 
 @task_t(name="matrix")
 def test_matrix(c: Runner) -> None:
     """TODO"""
-    task_matrix(
+    results = task_matrix(
         hook=test_dev,
-        hook_args_builder=lambda name: ([c], {"python_version": name}),
-        task_names=["3.7", "3.8", "3.9"],
+        hook_args_builder=lambda name: (
+            [c],
+            {"python_version": name, "restore_venv": False},
+        ),
+        task_names=reversed(supported_python_versions),
+        print_steps=False,
     )
+    # results.print_report()
+    results.exit_with_rc()
 
 
 # from invoke_poetry import (
