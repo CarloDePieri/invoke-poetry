@@ -114,7 +114,33 @@ def task_matrix(
     task_names: Iterable[str],
     print_steps: bool = True,
 ) -> TaskMatrix:
-    """TODO"""
+    """Launch the task `hook` function once for every task name provided. The hook args are built using the
+    `hook_args_builder` hook, which receives the current task name.
+
+    This is an example that takes a previously defined task and launch it with two different python versions as task
+    names:
+
+    ```
+    @task
+    def print_python_version(c: Runner, python_version: str, restore_venv: bool =True) -> None:
+        with poetry_venv(c, python_version=python_version, restore_venv=restore_venv):
+            c.run("python --version")
+
+    @task
+    def matrix(c: Runner) -> None:
+        task_matrix(
+            hook=print_python_version,
+            hook_args_builder=lambda name: (
+                [c],
+                {"python_version": name, "restore_venv": False},
+            ),
+            task_names=['3.7', '3.8'],
+        )
+    ```
+
+    It returns a TaskMatrix object, which allows further operations, like printing a report or exiting with a specific
+    exit code.
+    """
 
     capture_signal()
 
@@ -123,20 +149,27 @@ def task_matrix(
         for name in task_names:
             try:
                 if IsInterrupted.by_user:
+                    # this task should not be launched, register it as skipped
                     tm.register_new_task(name=name, state=TaskState.SKIPPED)
                 else:
+                    # prepare a new task
                     task = MatrixTask(name=name)
                     if print_steps:
                         task.report_state()
+                    # build the task args and kwargs
                     hook_args, hook_kwargs = hook_args_builder(name)
+                    # launch the task and save its return value
                     task.returned = hook(*hook_args, **hook_kwargs)
+                    # mark the task as completed and register it
                     task.state = TaskState.OK
                     tm.register_task(task)
             except (BaseException,) as e:
                 if not IsInterrupted.by_user:
                     print(e)
+                    # Something bad happened, register the task as failed
                     tm.register_new_task(name=name, state=TaskState.FAILED)
                 else:
+                    # the user interrupted the task, mark it as interrupted; remaining tasks will be skipped
                     tm.register_new_task(name=name, state=TaskState.INTERRUPTED)
                     IsInterrupted.by_user = True
 

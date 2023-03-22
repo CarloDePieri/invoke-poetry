@@ -3,13 +3,7 @@ from typing import Optional
 
 from invoke import Result, Runner
 
-from invoke_poetry import (
-    add_sub_collection,
-    init_ns,
-    poetry_venv,
-    remember_active_env,
-    task_matrix,
-)
+from invoke_poetry import add_sub_collection, init_ns, poetry_venv, task_matrix
 
 supported_python_versions = ["3.7", "3.8", "3.9", "3.10"]
 default_python_version = supported_python_versions[0]
@@ -47,9 +41,9 @@ def test_matrix(c: Runner) -> None:
             {"python_version": name, "restore_venv": False},
         ),
         task_names=reversed(supported_python_versions),
-        print_steps=False,
+        print_steps=True,
     )
-    # results.print_report()
+    results.print_report()
     results.exit_with_rc()
 
 

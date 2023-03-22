@@ -218,7 +218,7 @@ def env_remove_task(c, python_version=None, rm_link=True, all=False):
     },
 )
 def env_init_task(c, python_version=None, link=True, all=False, rebuild=False):
-    """Create a venv and install the project dependencies using a customizable install_project_dependencies_hook.
+    """Create a venv and install the project dependencies using a customizable hook.
 
     By default, the hook run 'poetry install' inside the venv."""
     with remember_active_env(c, quiet=False):
