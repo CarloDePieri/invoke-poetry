@@ -12,10 +12,10 @@ class PoetryAPI:
     poetry: ClassVar[Poetry]
     env_manager: ClassVar[EnvManager]
 
-    @staticmethod
-    def init():
-        PoetryAPI.poetry = Factory().create_poetry(Path(".").absolute())
-        PoetryAPI.env_manager = EnvManager(PoetryAPI.poetry)
+    @classmethod
+    def init(cls) -> None:
+        cls.poetry = Factory().create_poetry(Path(".").absolute())
+        cls.env_manager = EnvManager(cls.poetry)
 
     @classmethod
     def get_active_env_version(cls) -> str:
@@ -34,12 +34,12 @@ class PoetryAPI:
         return version in cls.get_available_env_names()
 
     @classmethod
-    def activate_env(cls, version: str) -> None:
-        PoetryAPI.env_manager.activate(version)
+    def activate_env(cls, version: str) -> Path:
+        return PoetryAPI.env_manager.activate(version).path
 
     @classmethod
-    def remove_env(cls, version: str) -> None:
-        PoetryAPI.env_manager.remove(version)
+    def remove_env(cls, version: str) -> Path:
+        return PoetryAPI.env_manager.remove(version).path
 
     @staticmethod
     def _get_version_from_venv(venv: Env) -> str:

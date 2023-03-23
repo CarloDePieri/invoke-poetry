@@ -173,7 +173,8 @@ class TestAPoetryApi:
                 version = "3.9"
                 assert len(PoetryAPI.get_available_env_names()) == 0
                 assert PoetryAPI.get_active_env_version() == "3.8"
-                PoetryAPI.activate_env(version=version)
+                env_path = PoetryAPI.activate_env(version=version)
+                assert version in str(env_path)
                 assert PoetryAPI.get_available_env_names() == [version]
                 assert PoetryAPI.get_active_env_version() == version
                 assert version in c.run("{poetry_bin_str} env info -p").stdout
@@ -202,7 +203,8 @@ class TestAPoetryApi:
                 version = "3.9"
                 c.run("{poetry_bin_str} env use " + version)
                 assert len(PoetryAPI.get_available_env_names()) == 1
-                PoetryAPI.remove_env(version=version)
+                deleted = PoetryAPI.remove_env(version=version)
+                assert version in str(deleted)
                 assert len(PoetryAPI.get_available_env_names()) == 0
             """
         add_test_file(test_source, debug_mode=False)
