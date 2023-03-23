@@ -8,15 +8,8 @@ from invoke import Runner
 from invoke.exceptions import UnexpectedExit
 
 from invoke_poetry.collection import F, InvokeTask, PatchedInvokeCollection
-from invoke_poetry.env import (
-    active_env,
-    env,
-    env_activate,
-    get_active_env_version,
-    remember_active_env,
-    validate_env_version,
-)
-from invoke_poetry.logs import error, info, warn
+from invoke_poetry.env import active_env, env, validate_env_version
+from invoke_poetry.logs import error, warn
 from invoke_poetry.matrix import TaskMatrix
 from invoke_poetry.poetry_api import PoetryAPI
 from invoke_poetry.settings import Settings
@@ -27,7 +20,6 @@ def init_ns(
     default_python_version: str,
     supported_python_versions: Optional[Iterable[str]] = None,
     install_project_dependencies_hook: Optional[Callable[..., Any]] = None,
-    poetry_env_file: Optional[str] = None,
 ) -> Tuple[PatchedInvokeCollection, Callable[..., Any]]:
     """Prepare the root invoke collection and set all required settings.
     Invoke REQUIRES a root collection specifically named 'ns' in the tasks.py file, so use this function like this:
@@ -49,19 +41,14 @@ def init_ns(
     if not supported_python_versions:
         supported_python_versions = [default_python_version]
 
-    # Prepare the poetry config file path
-    if poetry_env_file:
-        poetry_env_file = Path(poetry_env_file)
-
     # Save specified settings in the Settings namespace
     Settings().init(
         default_python_version,
         supported_python_versions,
         install_project_dependencies_hook=install_project_dependencies_hook,
-        poetry_env_file=poetry_env_file,
     )
 
-    # Setup the poetry api
+    # Set up the poetry api
     PoetryAPI.init()
 
     # inject the env collection
@@ -75,7 +62,8 @@ def add_sub_collection(
 ) -> Tuple[
     PatchedInvokeCollection, Callable[..., Union[InvokeTask, Callable[[F], InvokeTask]]]
 ]:
-    """Convenience function to create a new sub collection in a collection and get access to the new `.task` decorator."""
+    """Convenience function to create a new sub collection in a collection and get access to the new `.task`
+    decorator."""
     sub = PatchedInvokeCollection(name)
     collection.add_collection(sub)
     return sub, sub.task
@@ -105,7 +93,7 @@ def poetry_venv(
 
         # restore the previous env if needed after the context code block
         with active_env(
-            c, python_version=python_version, quiet=False, rollback_env=rollback_env
+            python_version=python_version, quiet=False, rollback_env=rollback_env
         ):
             # patch the runner to prepend 'poetry run' to commands
             with patched_runner(c):

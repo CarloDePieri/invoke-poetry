@@ -88,7 +88,8 @@ class TaskMatrix:
     @staticmethod
     @contextmanager
     def new(quiet: bool = False) -> Generator[TaskMatrix, None, None]:
-        """Context manager used to run a matrix job. It makes sure that the `running` class variable is correctly set."""
+        """Context manager used to run a matrix job. It makes sure that the `running` class variable is correctly
+        set."""
         TaskMatrix.running = True
         try:
             yield TaskMatrix(quiet=quiet)

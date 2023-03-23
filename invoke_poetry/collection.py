@@ -13,7 +13,8 @@ class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
     """Patched invoke Collection to suit my workflow.
 
     - Allows to define tasks in (sub)collections; waiting for https://github.com/pyinvoke/invoke/pull/789
-    - Allows to use type annotation on tasks, using a patched Task class; waiting for https://github.com/pyinvoke/invoke/pull/606
+    - Allows to use type annotation on tasks, using a patched Task class; waiting
+        for https://github.com/pyinvoke/invoke/pull/606
     """
 
     def task(
@@ -22,7 +23,7 @@ class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
         """Register a task.
 
         By supporting python 3.7, this is the better we can annotate this decorator. Mypy will not complain most of the
-        time, but it may need some convincing in certain specific cases (see 'nothing cannot be called':
+        time, but it may need some convincing in certain specific cases (see 'nothing cannot be called'):
 
         @task(name="dev")
         def dev(c: Runner) -> int:

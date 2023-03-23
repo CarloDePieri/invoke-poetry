@@ -5,7 +5,7 @@ from invoke import Result, Runner
 
 from invoke_poetry import add_sub_collection, init_ns, poetry_venv, task_matrix
 
-supported_python_versions = ["3.7", "3.8", "3.9", "3.10"]
+supported_python_versions = ["3.8", "3.9", "3.10"]
 default_python_version = supported_python_versions[0]
 
 
@@ -18,7 +18,7 @@ tc, task_t = add_sub_collection(ns, "test")
 
 @task
 def tt(c: Runner) -> None:
-    c.run("echo yo")
+    print("yo")
 
 
 @task_t(name="dev", default=True)
