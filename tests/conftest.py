@@ -1,6 +1,7 @@
 import sys
+import textwrap
 from pathlib import Path
-from typing import Callable
+from typing import Tuple
 
 import pytest
 
@@ -8,9 +9,31 @@ pytest_plugins = "pytester"
 
 
 @pytest.fixture
-def inv() -> Path:
+def venv_interpreter() -> Path:
+    """Return the absolute path of the current interpreter."""
     interpreter = Path(sys.executable)
-    return interpreter.parent / "inv"
+    return interpreter.absolute()
+
+
+@pytest.fixture
+def inv_bin(venv_interpreter) -> Tuple[Path, Path]:
+    """Return a Tuple containing the interpreter and the invoke binary."""
+    return venv_interpreter, venv_interpreter.parent.absolute() / "invoke"
+
+
+@pytest.fixture
+def poetry_bin(venv_interpreter) -> Tuple[Path, Path]:
+    """Since poetry is installed in the venv and tries internally to use a relative path we need to use the external
+    poetry bin during our tests.
+
+    See: https://github.com/python-poetry/poetry/issues/2871"""
+    return venv_interpreter, venv_interpreter.parent.absolute() / "poetry"
+
+
+@pytest.fixture
+def poetry_bin_str(poetry_bin) -> str:
+    """Return a string in the form of 'interpreter poetry_bin'."""
+    return f"{poetry_bin[0]} {poetry_bin[1]}"
 
 
 @pytest.fixture
@@ -29,8 +52,7 @@ def pytester(pytester):
     authors = ["Carlo De Pieri <depieri.carlo@gmail.com>"]
     
     [tool.poetry.dependencies]
-    python = "^3.7"
-    isort = "^5.10.1"
+    python = "^3.8"
     
     [tool.poetry.dev-dependencies]
     
@@ -43,15 +65,22 @@ def pytester(pytester):
 
 
 @pytest.fixture
-def debug() -> Callable[[bool], str]:
-    def wrapper(start: bool = True) -> str:
-        if start:
-            debugger_code = (
-                "\timport pydevd_pycharm;pydevd_pycharm.settrace('localhost', port=9000, "
-                "stdoutToServer=True, stderrToServer=True)"
-            )
-        else:
-            debugger_code = ""
-        return debugger_code
+def connect_debugger():
+    def wrapper() -> str:
+        return (
+            "import pydevd_pycharm;pydevd_pycharm.settrace('localhost', port=9000, "
+            "stdoutToServer=True, stderrToServer=True)\n"
+        )
 
     return wrapper
+
+
+@pytest.fixture()
+def add_test_file(pytester, connect_debugger):
+    def _add_test_file(test_source: str, debug_mode: bool = False) -> None:
+        test_source = textwrap.dedent(test_source)
+        if debug_mode:
+            test_source = connect_debugger() + test_source
+        pytester.makepyfile(tasks=test_source)
+
+    return _add_test_file

@@ -18,6 +18,7 @@ from invoke_poetry.env import (
 )
 from invoke_poetry.logs import error, info, warn
 from invoke_poetry.matrix import TaskMatrix
+from invoke_poetry.poetry_api import PoetryAPI
 from invoke_poetry.settings import Settings
 from invoke_poetry.utils import IsInterrupted, capture_signal
 
@@ -59,6 +60,9 @@ def init_ns(
         install_project_dependencies_hook=install_project_dependencies_hook,
         poetry_env_file=poetry_env_file,
     )
+
+    # Setup the poetry api
+    PoetryAPI.init()
 
     # inject the env collection
     ns.add_collection(env)
