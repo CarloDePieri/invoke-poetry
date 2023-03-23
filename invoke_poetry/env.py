@@ -2,8 +2,9 @@ import os
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Generator, Optional, Tuple
 
+import toml
 from invoke import Result, Runner
 
 from invoke_poetry.collection import PatchedInvokeCollection
@@ -100,8 +101,29 @@ def get_active_env_path(c: Runner) -> Optional[str]:
         return None
 
 
+def get_active_env_info() -> Optional[Tuple[str, Path]]:
+    env_file: Optional[Path] = Settings.poetry_env_file
+    if env_file:
+        with open(env_file, "r") as f:
+            env_file = toml.load(f)
+        poetry_project_id = list(env_file.keys())[0]
+        version: str = env_file[poetry_project_id]["minor"]
+        env_path = env_file.parent / f"{poetry_project_id}-py{version}"
+        return version, env_path
+    return None
+
+
 def get_active_env_version(c: Runner) -> Optional[str]:
     """TODO"""
+    # try the fast way first
+    if Settings.poetry_env_file:
+        with open(Settings.poetry_env_file, "r") as f:
+            env_file = toml.load(f)
+        poetry_project_id = list(env_file.keys())[0]
+        version: str = env_file[poetry_project_id]["minor"]
+        return version
+
+    # fallback to the slower one
     path = get_active_env_path(c)
     if path:
         regex = r"py(\d\.\d*)"
@@ -126,24 +148,44 @@ def validate_env_version(python_version: Optional[str]) -> str:
 
 
 @contextmanager
-def remember_active_env(
-    c: Runner, quiet: bool = True, skip_rollback: bool = False
+def active_env(
+    c: Runner, python_version: str, quiet: bool = True, rollback_env: bool = True
 ) -> Generator[None, None, None]:
-    """A context manager that makes sure to go back to the previously active poetry venv. The rollback can be skipped
-    dynamically."""
-    if skip_rollback:
+
+    previously_active_version = get_active_env_version(c)
+    active_version = previously_active_version
+
+    try:
+        with delay_keyboard_interrupt():
+            # activate the new virtual env, if needed
+            if python_version != previously_active_version:
+                env_activate(c, python_version, link=False)
+                active_version = python_version
+                if not quiet:
+                    info(f"Activated env: {python_version}")
         yield
-    else:
-        old_active_version = get_active_env_version(c)
-        try:
-            yield
-        finally:
-            with delay_keyboard_interrupt():
-                active_version = get_active_env_version(c)
-                if old_active_version and active_version != old_active_version:
-                    env_activate(c, old_active_version)
-                    if not quiet:
-                        info(f"Reactivated env: {old_active_version}")
+    finally:
+        with delay_keyboard_interrupt():
+            if rollback_env and previously_active_version != active_version:
+                # rollback to the old env, if needed
+                env_activate(c, previously_active_version)
+                if not quiet:
+                    info(f"Reactivated env: {previously_active_version}")
+
+
+@contextmanager
+def remember_active_env(c: Runner, quiet: bool = True) -> Generator[None, None, None]:
+    """A context manager that makes sure to go back to the previously active poetry venv."""
+    old_active_version = get_active_env_version(c)
+    try:
+        yield
+    finally:
+        with delay_keyboard_interrupt():
+            active_version = get_active_env_version(c)
+            if old_active_version and active_version != old_active_version:
+                env_activate(c, old_active_version)
+                if not quiet:
+                    info(f"Reactivated env: {old_active_version}")
 
 
 #

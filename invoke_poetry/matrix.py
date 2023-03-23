@@ -120,7 +120,7 @@ def task_matrix(
     This is an example that takes a previously defined task and launch it with two different python versions as task
     names:
 
-    ```
+    ```python
     @task
     def print_python_version(c: Runner, python_version: str, restore_venv: bool =True) -> None:
         with poetry_venv(c, python_version=python_version, restore_venv=restore_venv):

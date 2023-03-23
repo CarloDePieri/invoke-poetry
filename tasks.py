@@ -23,10 +23,12 @@ def tt(c: Runner) -> None:
 
 @task_t(name="dev", default=True)
 def test_dev(
-    c: Runner, python_version: Optional[str] = None, restore_venv: bool = True
+    c: Runner, python_version: Optional[str] = None, rollback_env: bool = True
 ) -> Result:
     """Launch all tests. Remember to launch `inv env.init --all` once, first."""
-    with poetry_venv(c, python_version=python_version, restore_venv=restore_venv):
+    with poetry_venv(c, python_version=python_version, rollback_env=rollback_env):
+        # print("wait")
+        # sleep(10)
         result = c.run("python --version")
     return result
 
@@ -38,7 +40,7 @@ def test_matrix(c: Runner) -> None:
         hook=test_dev,
         hook_args_builder=lambda name: (
             [c],
-            {"python_version": name, "restore_venv": False},
+            {"python_version": name, "rollback_env": False},
         ),
         task_names=reversed(supported_python_versions),
         print_steps=True,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Callable, Generator, Iterable, Optional, Tuple, Union
 
 from invoke import Runner
@@ -8,6 +9,7 @@ from invoke.exceptions import UnexpectedExit
 
 from invoke_poetry.collection import F, InvokeTask, PatchedInvokeCollection
 from invoke_poetry.env import (
+    active_env,
     env,
     env_activate,
     get_active_env_version,
@@ -24,6 +26,7 @@ def init_ns(
     default_python_version: str,
     supported_python_versions: Optional[Iterable[str]] = None,
     install_project_dependencies_hook: Optional[Callable[..., Any]] = None,
+    poetry_env_file: Optional[str] = None,
 ) -> Tuple[PatchedInvokeCollection, Callable[..., Any]]:
     """Prepare the root invoke collection and set all required settings.
     Invoke REQUIRES a root collection specifically named 'ns' in the tasks.py file, so use this function like this:
@@ -45,11 +48,16 @@ def init_ns(
     if not supported_python_versions:
         supported_python_versions = [default_python_version]
 
+    # Prepare the poetry config file path
+    if poetry_env_file:
+        poetry_env_file = Path(poetry_env_file)
+
     # Save specified settings in the Settings namespace
     Settings().init(
         default_python_version,
         supported_python_versions,
         install_project_dependencies_hook=install_project_dependencies_hook,
+        poetry_env_file=poetry_env_file,
     )
 
     # inject the env collection
@@ -71,7 +79,7 @@ def add_sub_collection(
 
 @contextmanager
 def poetry_venv(
-    c: Runner, python_version: Optional[str] = None, restore_venv: bool = True
+    c: Runner, python_version: Optional[str] = None, rollback_env: bool = True
 ) -> Generator[None, None, None]:
     """Context manager that will execute all Runner.run() commands inside the selected
     poetry virtualenv.
@@ -87,54 +95,60 @@ def poetry_venv(
         c.run("python --version")  # will run normally as 'python --version'
     ```
     """
-    capture_signal()
-
-    try:
+    with user_can_interrupt():
         # validate the given python version
         python_version = validate_env_version(python_version)
 
-        # remember the active virtual env and come back to it when all is done
-        with remember_active_env(c, quiet=False, skip_rollback=not restore_venv):
-
-            # activate the new virtual env, if needed
-            if python_version != get_active_env_version(c):
-                env_activate(c, python_version, link=False)
-                info(f"Activated env: {python_version}")
-
-            # patch the run method inside this context manager
-            c.run_outside = c.run
-
-            def poetry_run(*args: Any, **kwargs: Any) -> None:
-                if "command" in kwargs:
-                    cmd = kwargs["command"]
-                    command = f"poetry run {cmd}"
-                    del kwargs["command"]
-                else:
-                    command = f"poetry run {args[0]}"
-                return c.run_outside(command=command, **kwargs)
-
-            c.run = poetry_run
-            try:
+        # restore the previous env if needed after the context code block
+        with active_env(
+            c, python_version=python_version, quiet=False, rollback_env=rollback_env
+        ):
+            # patch the runner to prepend 'poetry run' to commands
+            with patched_runner(c):
+                # Execute the context manager code block
                 yield
-            finally:
-                if IsInterrupted.by_user:
-                    # User sent a ctrl-c
-                    warn("Poetry task manually interrupted")
-                # restore the original run method
-                c.run = c.run_outside
-                delattr(c, "run_outside")
-    except (KeyboardInterrupt, UnexpectedExit) as e:
 
+
+@contextmanager
+def user_can_interrupt() -> Generator[None, None, None]:
+    capture_signal()
+    try:
+        yield
+    except (KeyboardInterrupt, UnexpectedExit) as e:
         if IsInterrupted.by_user:
             if not TaskMatrix.running:
                 # If the user interrupted a single job, exit now with an error message
                 error("User aborted!", exit_now=True)
             else:
                 # Raise the error so that it can be caught by the matrix logic
+                warn("Poetry task manually interrupted")
                 raise e
         else:
             # This was not a user interrupt, so it should simply raise the error
             raise e
+
+
+@contextmanager
+def patched_runner(c: Runner) -> Generator[None, None, None]:
+    # patch the run method inside this context manager
+    c.run_outside = c.run
+
+    def poetry_run(*args: Any, **kwargs: Any) -> None:
+        if "command" in kwargs:
+            cmd = kwargs["command"]
+            command = f"poetry run {cmd}"
+            del kwargs["command"]
+        else:
+            command = f"poetry run {args[0]}"
+        return c.run_outside(command=command, **kwargs)
+
+    c.run = poetry_run
+    try:
+        yield
+    finally:
+        # restore the original run method
+        c.run = c.run_outside
+        delattr(c, "run_outside")
 
 
 def install_project_dependencies(c: Runner, *args: Any, **kwargs: Any) -> Any:
