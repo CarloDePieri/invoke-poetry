@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Callable, ClassVar, Dict, Generator, Iterable, List, Tuple
 
+from invoke_poetry import remember_active_env
 from invoke_poetry.logs import Colors, error, info, warn
 from invoke_poetry.utils import IsInterrupted, capture_signal
 
@@ -118,6 +119,8 @@ def task_matrix(
     """Launch the task `hook` function once for every task name provided. The hook args are built using the
     `hook_args_builder` hook, which receives the current task name.
 
+    After executing, it will go back to the previously active poetry env.
+
     This is an example that takes a previously defined task and launch it with two different python versions as task
     names:
 
@@ -145,8 +148,7 @@ def task_matrix(
 
     capture_signal()
 
-    with TaskMatrix.new(quiet=not print_steps) as tm:
-
+    with remember_active_env(quiet=False), TaskMatrix.new(quiet=not print_steps) as tm:
         for name in task_names:
             try:
                 if IsInterrupted.by_user:
