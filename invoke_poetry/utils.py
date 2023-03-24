@@ -1,7 +1,7 @@
 import re
 import signal
 from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any, AnyStr, Generator, List, Pattern
 
 delayed_interrupt = False
 
@@ -36,6 +36,10 @@ def capture_signal() -> None:
     signal.signal(signal.SIGINT, ctrl_c_handler)
 
 
-def natural_sort_key(s, _nsre=re.compile("([0-9]+)")):
-    """TODO"""
-    return [int(text) if text.isdigit() else text.lower() for text in _nsre.split(s)]
+def natural_sort_key(
+    string: str, _nsre: Pattern[str] = re.compile("([0-9]+)")
+) -> List[str]:
+    """Transform a string like '3.8' in a list of single digits that can be used to 'naturally' sort similar strings."""
+    return [
+        int(text) if text.isdigit() else text.lower() for text in _nsre.split(string)
+    ]
