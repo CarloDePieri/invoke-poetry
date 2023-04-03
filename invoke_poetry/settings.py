@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, Callable, ClassVar, Iterable, Optional
 
 from invoke import Runner
@@ -6,6 +7,7 @@ from invoke.runners import Result
 
 def _install_project_dependencies_default_hook(c: Runner, quiet: bool = True) -> Result:
     """The default hook for installing project dependencies: it will simply run 'poetry install'."""
+    # noinspection PyTypeChecker
     return c.run("poetry install", hide=quiet, pty=True)
 
 
@@ -17,15 +19,18 @@ class Settings:
     ] = _install_project_dependencies_default_hook
     default_python_version: ClassVar[str]
     supported_python_versions: ClassVar[Iterable[str]]
+    venv_link_path: ClassVar[Path]
 
     @staticmethod
     def init(
         default_python_version: str,
         supported_python_versions: Iterable[str],
         install_project_dependencies_hook: Optional[Callable[..., Any]] = None,
+        venv_link_path: Path = Path(".venv"),
     ) -> None:
         Settings.default_python_version = default_python_version
         Settings.supported_python_versions = supported_python_versions
+        Settings.venv_link_path = venv_link_path
 
         if install_project_dependencies_hook:
             Settings.install_project_dependencies_hook = (
