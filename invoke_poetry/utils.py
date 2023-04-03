@@ -1,7 +1,7 @@
 import re
 import signal
 from contextlib import contextmanager
-from typing import Any, AnyStr, Callable, Generator, List, Optional, Pattern
+from typing import Any, Callable, Generator, List, Pattern
 
 delayed_interrupt = False
 
@@ -26,19 +26,20 @@ def delay_keyboard_interrupt() -> Generator[None, None, None]:
         raise KeyboardInterrupt
 
 
-def ctrl_c_handler(_: Any, __: Any) -> None:
-    """When ctrl-c is captured, TODO."""
-    # do stuff - this is needed when ctrl-c is pressed when a c.run is executing
+def flag_user_interrupt(_: Any, __: Any) -> None:
+    """Used as signal handler, flag a user interrupt in the `IsInterrupted` class, then raise the
+    `KeyboardInterrupt`."""
     IsInterrupted.by_user = True
     raise KeyboardInterrupt
 
 
-def capture_sigint(handler: Callable[[Any, Any], None] = ctrl_c_handler) -> None:
+def capture_sigint(handler: Callable[[Any, Any], None] = flag_user_interrupt) -> None:
+    """Capture a sigint and execute the given handler. By default, call `flag_user_interrupt`."""
     signal.signal(signal.SIGINT, handler)
 
 
 def natural_sort_key(
-    string: str, _nsre: Pattern[str] = re.compile("([0-9]+)")
+    string: str, _nsre: Pattern[str] = re.compile(r"(\d+)")
 ) -> List[str]:
     """Transform a string like '3.8' in a list of single digits that can be used to 'naturally' sort similar strings."""
     return [
