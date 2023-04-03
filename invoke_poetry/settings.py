@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Any, Callable, ClassVar, Iterable, Optional
 
 from invoke import Runner
@@ -11,15 +10,13 @@ def _install_project_dependencies_default_hook(c: Runner, quiet: bool = True) ->
 
 
 class Settings:
-    """TODO"""
+    """Module-wide settings storage."""
 
     install_project_dependencies_hook: ClassVar[
         Callable[..., Any]
     ] = _install_project_dependencies_default_hook
-    poetry_env_file: ClassVar[Optional[Path]]
     default_python_version: ClassVar[str]
     supported_python_versions: ClassVar[Iterable[str]]
-    venv_link_path = Path(".venv")
 
     @staticmethod
     def init(
