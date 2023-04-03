@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import sys
 from contextlib import contextmanager
-from pathlib import Path
-from typing import Any, Callable, Generator, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Generator, Iterable, List, Optional, Tuple, Union
 
 from invoke import Runner
 from invoke.exceptions import UnexpectedExit
@@ -13,7 +13,7 @@ from invoke_poetry.logs import error, warn
 from invoke_poetry.matrix import TaskMatrix
 from invoke_poetry.poetry_api import PoetryAPI
 from invoke_poetry.settings import Settings
-from invoke_poetry.utils import IsInterrupted, capture_signal
+from invoke_poetry.utils import IsInterrupted, capture_sigint
 
 
 def init_ns(
@@ -103,7 +103,8 @@ def poetry_venv(
 
 @contextmanager
 def user_can_interrupt() -> Generator[None, None, None]:
-    capture_signal()
+    """TODO"""
+    capture_sigint()
     try:
         yield
     except (KeyboardInterrupt, UnexpectedExit) as e:
@@ -122,6 +123,7 @@ def user_can_interrupt() -> Generator[None, None, None]:
 
 @contextmanager
 def patched_runner(c: Runner) -> Generator[None, None, None]:
+    """TODO"""
     # patch the run method inside this context manager
     c.run_outside = c.run
 
@@ -147,3 +149,32 @@ def install_project_dependencies(c: Runner, *args: Any, **kwargs: Any) -> Any:
     """A convenience function to call the install_project_dependencies hook (either the custom or the default one).
     It will pass forward every argument."""
     return Settings.install_project_dependencies_hook(c, *args, **kwargs)
+
+
+def get_additional_args() -> List[str]:
+    """Gather all command line arguments passed after a '--'."""
+    if "--" not in sys.argv:
+        return []
+    else:
+        delimiter = sys.argv.index("--") + 1
+        return sys.argv[delimiter:]
+
+
+def get_additional_args_string() -> str:
+    """Gather all command line arguments passed after a '--' and turn them into a string, trying to preserve quotes."""
+
+    def handle_spaces_and_quotes(string):
+        """Try to handle spaces and quoted arguments."""
+        if " " in string:
+            if '"' in string and "'" in string:
+                s = string.replace('"', '\\"')
+                return f'"{s}"'
+            elif '"' in string:
+                return f"'{string}'"
+            else:
+                return f'"{string}"'
+        else:
+            return string
+
+    args = [handle_spaces_and_quotes(x) for x in get_additional_args()]
+    return " " + " ".join(args) if args else ""

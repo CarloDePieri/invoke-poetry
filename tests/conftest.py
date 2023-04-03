@@ -77,10 +77,10 @@ def connect_debugger():
 
 @pytest.fixture()
 def add_test_file(pytester, connect_debugger):
-    def _add_test_file(test_source: str, debug_mode: bool = False) -> None:
-        test_source = textwrap.dedent(test_source)
+    def _add_test_file(source: str, debug_mode: bool = False) -> None:
+        source = textwrap.dedent(source)
         if debug_mode:
-            test_source = connect_debugger() + test_source
-        pytester.makepyfile(tasks=test_source)
+            source = connect_debugger() + source
+        pytester.makepyfile(tasks=source)
 
     return _add_test_file

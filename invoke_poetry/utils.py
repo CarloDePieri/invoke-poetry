@@ -1,7 +1,7 @@
 import re
 import signal
 from contextlib import contextmanager
-from typing import Any, AnyStr, Generator, List, Pattern
+from typing import Any, AnyStr, Callable, Generator, List, Optional, Pattern
 
 delayed_interrupt = False
 
@@ -13,7 +13,8 @@ class IsInterrupted:
 
 @contextmanager
 def delay_keyboard_interrupt() -> Generator[None, None, None]:
-    """TODO"""
+    """Mimics a critical section: capture user SIGINTs arrived during the execution of the code block, delaying the
+    interrupt effect to after the code block execution is done."""
 
     def _interrupt(_: Any, __: Any) -> None:
         IsInterrupted.delayed = True
@@ -32,8 +33,8 @@ def ctrl_c_handler(_: Any, __: Any) -> None:
     raise KeyboardInterrupt
 
 
-def capture_signal() -> None:
-    signal.signal(signal.SIGINT, ctrl_c_handler)
+def capture_sigint(handler: Callable[[Any, Any], None] = ctrl_c_handler) -> None:
+    signal.signal(signal.SIGINT, handler)
 
 
 def natural_sort_key(

@@ -7,7 +7,7 @@ from typing import Any, Callable, ClassVar, Dict, Generator, Iterable, List, Tup
 
 from invoke_poetry import remember_active_env
 from invoke_poetry.logs import Colors, error, info, warn
-from invoke_poetry.utils import IsInterrupted, capture_signal
+from invoke_poetry.utils import IsInterrupted, capture_sigint
 
 
 class TaskState(enum.Enum):
@@ -146,7 +146,7 @@ def task_matrix(
     exit code.
     """
 
-    capture_signal()
+    capture_sigint()
 
     with remember_active_env(quiet=False), TaskMatrix.new(quiet=not print_steps) as tm:
         for name in task_names:
