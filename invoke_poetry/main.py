@@ -20,6 +20,8 @@ def init_ns(
     default_python_version: str,
     supported_python_versions: Optional[Iterable[str]] = None,
     install_project_dependencies_hook: Optional[Callable[..., Any]] = None,
+    poetry_bin: Optional[str] = None,
+    venv_link_path: Optional[str] = None,
 ) -> Tuple[PatchedInvokeCollection, Callable[..., Any]]:
     """Prepare the root invoke collection and set all required settings.
     Invoke REQUIRES a root collection specifically named 'ns' in the tasks.py file, so use this function like this:
@@ -46,6 +48,8 @@ def init_ns(
         default_python_version,
         supported_python_versions,
         install_project_dependencies_hook=install_project_dependencies_hook,
+        poetry_bin=poetry_bin,
+        venv_link_path=venv_link_path,
     )
 
     # Set up the poetry api
@@ -71,7 +75,10 @@ def add_sub_collection(
 
 @contextmanager
 def poetry_venv(
-    c: Runner, python_version: Optional[str] = None, rollback_env: bool = True
+    c: Runner,
+    python_version: Optional[str] = None,
+    rollback_env: bool = True,
+    link: bool = False,
 ) -> Generator[None, None, None]:
     """Context manager that will execute all Runner.run() commands inside the selected
     poetry virtualenv.
@@ -93,7 +100,10 @@ def poetry_venv(
 
         # restore the previous env if needed after the context code block
         with active_env(
-            python_version=python_version, quiet=False, rollback_env=rollback_env
+            python_version=python_version,
+            quiet=False,
+            rollback_env=rollback_env,
+            link=link,
         ):
             # patch the runner to prepend 'poetry run' to commands
             with patched_runner(c):
@@ -128,12 +138,13 @@ def patched_runner(c: Runner) -> Generator[None, None, None]:
     c.run_outside = c.run
 
     def poetry_run(*args: Any, **kwargs: Any) -> None:
+        poetry_run_cmd = Settings.poetry_bin + " run"
         if "command" in kwargs:
             cmd = kwargs["command"]
-            command = f"poetry run {cmd}"
+            command = f"{poetry_run_cmd} {cmd}"
             del kwargs["command"]
         else:
-            command = f"poetry run {args[0]}"
+            command = f"{poetry_run_cmd} {args[0]}"
         return c.run_outside(command=command, **kwargs)
 
     c.run = poetry_run

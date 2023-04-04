@@ -71,7 +71,7 @@ class TestAPoetryApi:
             
             @task(name="test")
             def test_task(c):
-                assert PoetryAPI.get_active_env_version() == "3.8"
+                assert PoetryAPI.get_active_env_version() is None
                 c.run("{poetry_bin_str} env use 3.9")
                 assert PoetryAPI.get_active_env_version() == "3.9"
             """
@@ -155,10 +155,10 @@ class TestAPoetryApi:
         result = pytester.run(*inv_bin, "test")
         assert result.ret == ExitCode.OK
 
-    def test_it_should_be_able_to_activate_a_venv(
+    def test_should_be_able_to_activate_a_venv(
         self, pytester, inv_bin, add_test_file, poetry_bin_str
     ):
-        """A poetry api it should be able to activate a venv."""
+        """A poetry api should be able to activate a venv."""
 
         # language=python prefix="if True:" # IDE language injection
         test_source = f"""
@@ -172,7 +172,7 @@ class TestAPoetryApi:
             def test_task(c):
                 version = "3.9"
                 assert len(PoetryAPI.get_available_env_names()) == 0
-                assert PoetryAPI.get_active_env_version() == "3.8"
+                assert PoetryAPI.get_active_env_version() is None
                 env_path = PoetryAPI.activate_env(version=version)
                 assert version in str(env_path)
                 assert PoetryAPI.get_available_env_names() == [version]

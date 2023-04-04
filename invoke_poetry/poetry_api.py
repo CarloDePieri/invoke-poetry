@@ -1,9 +1,9 @@
 from pathlib import Path
-from typing import ClassVar, List
+from typing import ClassVar, List, Optional
 
 from poetry.factory import Factory
 from poetry.poetry import Poetry
-from poetry.utils.env import Env, EnvManager
+from poetry.utils.env import Env, EnvManager, SystemEnv
 
 
 class PoetryAPI:
@@ -18,8 +18,19 @@ class PoetryAPI:
         cls.env_manager = EnvManager(cls.poetry)
 
     @classmethod
-    def get_active_env_version(cls) -> str:
-        return cls._get_version_from_venv(cls._get_active_env())
+    def get_active_env_version(cls) -> Optional[str]:
+        """Return the version of the active poetry env. Return None if the active env is a system env."""
+        env = cls._get_active_env()
+        if cls._is_system_env(env):
+            return None
+        return cls._get_version_from_venv(env)
+
+    @classmethod
+    def _is_system_env(cls, env: Env) -> bool:
+        return (
+            cls.env_manager.get_system_env().path.absolute().resolve()
+            == env.path.absolute().resolve()
+        )
 
     @classmethod
     def get_active_env_path(cls) -> Path:

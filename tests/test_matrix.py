@@ -178,3 +178,37 @@ class TestATaskMatrix:
                 ".*task_d:.*OK",
             ]
         )
+
+    def test_should_try_to_maintain_the_active_poetry_env(
+        self, pytester, inv_bin, add_test_file, poetry_bin_str, poetry_bin
+    ):
+        """A task matrix should try to maintain the active poetry env."""
+
+        task_names = ["3.8", "3.9"]
+        names = str(task_names)
+
+        # language=python prefix="poetry_bin_str='';names=('')\nif True:" # IDE language injection
+        task_source = f"""
+            from invoke import Runner
+            from invoke_poetry import init_ns, task_matrix
+            
+            ns, task = init_ns("3.8")
+            
+            def my_hook(c: Runner, name: str):
+                c.run(f"{poetry_bin_str} env use {{name}}")
+                    
+            @task(name="matrix")
+            def test_task(c):
+                result = task_matrix(
+                    hook=my_hook,
+                    hook_args_builder=lambda name: ([c, name],{{}}),
+                    task_names={names},
+                )
+                result.print_report()
+            """
+        add_test_file(source=task_source, debug_mode=False)
+        pytester.run(*poetry_bin, "env", "use", "3.8")
+        result = pytester.run(*inv_bin, "matrix")
+        assert result.ret == ExitCode.OK
+        result = pytester.run(*poetry_bin, "env", "info", "-p")
+        result.stdout.re_match_lines([r"\.venvs\/.*py3.8"])

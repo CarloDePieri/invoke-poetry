@@ -97,8 +97,12 @@ def validate_env_version(python_version: Optional[str]) -> str:
 
 @contextmanager
 def active_env(
-    python_version: str, quiet: bool = True, rollback_env: bool = True
+    python_version: str,
+    quiet: bool = True,
+    rollback_env: bool = True,
+    link: bool = False,
 ) -> Generator[None, None, None]:
+    """TODO"""
     previously_active_version = PoetryAPI.get_active_env_version()
     active_version = previously_active_version
 
@@ -106,16 +110,36 @@ def active_env(
         with delay_keyboard_interrupt():
             # activate the new virtual env, if needed
             if python_version != previously_active_version:
-                env_activate(python_version, link=False)
+                env_activate(python_version, link=link)
                 active_version = python_version
                 if not quiet:
                     info(f"Activated env: {python_version}")
         yield
     finally:
+        if rollback_env:
+            env_rollback_if_needed(
+                previously_active_version,
+                active_version=active_version,
+                quiet=quiet,
+                link=link,
+            )
+
+
+def env_rollback_if_needed(
+    previously_active_version: Optional[str],
+    active_version: Optional[str] = None,
+    quiet: bool = True,
+    link: bool = False,
+) -> None:
+    """TODO"""
+    if previously_active_version:
+        # There actually was a previously active poetry env
         with delay_keyboard_interrupt():
-            if rollback_env and previously_active_version != active_version:
+            if not active_version:
+                active_version = PoetryAPI.get_active_env_version()
+            if previously_active_version != active_version:
                 # rollback to the old env, if needed
-                env_activate(previously_active_version)
+                env_activate(previously_active_version, link=link)
                 if not quiet:
                     info(f"Reactivated env: {previously_active_version}")
 
@@ -127,12 +151,7 @@ def remember_active_env(quiet: bool = True) -> Generator[None, None, None]:
     try:
         yield
     finally:
-        with delay_keyboard_interrupt():
-            active_version = PoetryAPI.get_active_env_version()
-            if old_active_version and active_version != old_active_version:
-                env_activate(old_active_version)
-                if not quiet:
-                    info(f"Reactivated env: {old_active_version}")
+        env_rollback_if_needed(old_active_version, quiet=quiet, link=True)
 
 
 #
