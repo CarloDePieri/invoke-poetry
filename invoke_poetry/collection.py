@@ -1,6 +1,4 @@
-import inspect
 from typing import Any, Callable, TypeVar, Union, cast
-from unittest.mock import patch
 
 from invoke import Collection as InvokeCollection
 from invoke import Task, task
@@ -12,9 +10,8 @@ F = TypeVar("F", bound=Callable[..., Any])
 class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
     """Patched invoke Collection to suit my workflow.
 
-    - Allows to define tasks in (sub)collections; waiting for https://github.com/pyinvoke/invoke/pull/789
-    - Allows to use type annotation on tasks, using a patched Task class; waiting
-        for https://github.com/pyinvoke/invoke/pull/606
+    Allows to define tasks in (sub)collections; waiting for https://github.com/pyinvoke/invoke/pull/789 or
+    https://github.com/pyinvoke/invoke/pull/527 .
     """
 
     def task(
@@ -22,7 +19,7 @@ class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
     ) -> Union[InvokeTask, Callable[[F], InvokeTask]]:
         """Register a task.
 
-        By supporting python 3.7, this is the better we can annotate this decorator. Mypy will not complain most of the
+        By supporting python 3.8, this is the better we can annotate this decorator. Mypy will not complain most of the
         time, but it may need some convincing in certain specific cases (see 'nothing cannot be called'):
 
         @task(name="dev")
@@ -38,7 +35,7 @@ class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
             self.add_task(_task)
             return cast(InvokeTask, _task)
 
-        maybe_task = task(*args, klass=PatchedTask, **kwargs)
+        maybe_task = task(*args, klass=Task, **kwargs)
 
         if isinstance(maybe_task, Task):
             # called by @task , return the Task callable object
@@ -50,17 +47,3 @@ class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
                 return _added_task(maybe_task(func))
 
             return wrapper
-
-
-class PatchedTask(Task):  # type: ignore[misc]
-    """Replace all calls to the deprecated `getargspec` with `getfullargspec`."""
-
-    def argspec(self, *args: Any, **kwargs: Any) -> Any:
-        with patch("inspect.getargspec", wraps=self._patch):
-            return super().argspec(*args, **kwargs)
-
-    @staticmethod
-    def _patch(func: Callable[..., Any]) -> Union[inspect.ArgSpec, inspect.FullArgSpec]:
-        # noinspection PyDeprecation
-        get_argspec = getattr(inspect, "getfullargspec", inspect.getargspec)
-        return get_argspec(func)
