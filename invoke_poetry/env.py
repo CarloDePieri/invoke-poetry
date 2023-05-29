@@ -65,7 +65,7 @@ def env_remove(version: str, quiet: bool = False, rm_link: bool = True) -> None:
 
 def env_get_list() -> List[str]:
     """Prepare a colored list of poetry virtualenv."""
-    active_env_version = PoetryAPI.get_active_env_version()
+    active_env_version = PoetryAPI.get_active_project_env_version()
     versions = []
 
     for version in sorted(PoetryAPI.get_available_env_names(), key=natural_sort_key):
@@ -103,7 +103,7 @@ def active_env(
     link: bool = False,
 ) -> Generator[None, None, None]:
     """TODO"""
-    previously_active_version = PoetryAPI.get_active_env_version()
+    previously_active_version = PoetryAPI.get_active_project_env_version()
     active_version = previously_active_version
 
     try:
@@ -136,7 +136,7 @@ def env_rollback_if_needed(
         # There actually was a previously active poetry env
         with delay_keyboard_interrupt():
             if not active_version:
-                active_version = PoetryAPI.get_active_env_version()
+                active_version = PoetryAPI.get_active_project_env_version()
             if previously_active_version != active_version:
                 # rollback to the old env, if needed
                 env_activate(previously_active_version, link=link)
@@ -147,7 +147,7 @@ def env_rollback_if_needed(
 @contextmanager
 def remember_active_env(quiet: bool = True) -> Generator[None, None, None]:
     """A context manager that makes sure to go back to the previously active poetry venv."""
-    old_active_version = PoetryAPI.get_active_env_version()
+    old_active_version = PoetryAPI.get_active_project_env_version()
     try:
         yield
     finally:

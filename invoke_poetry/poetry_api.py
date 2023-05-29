@@ -3,7 +3,7 @@ from typing import ClassVar, List, Optional
 
 from poetry.factory import Factory
 from poetry.poetry import Poetry
-from poetry.utils.env import Env, EnvManager, SystemEnv
+from poetry.utils.env import Env, EnvManager
 
 
 class PoetryAPI:
@@ -18,19 +18,13 @@ class PoetryAPI:
         cls.env_manager = EnvManager(cls.poetry)
 
     @classmethod
-    def get_active_env_version(cls) -> Optional[str]:
-        """Return the version of the active poetry env. Return None if the active env is a system env."""
+    def get_active_project_env_version(cls) -> Optional[str]:
+        """Return the version of the active poetry env, if it's a poetry env associated with the current project,
+        otherwise return None."""
         env = cls._get_active_env()
-        if cls._is_system_env(env):
+        if env.path.absolute() not in cls.get_available_env_paths():
             return None
         return cls._get_version_from_venv(env)
-
-    @classmethod
-    def _is_system_env(cls, env: Env) -> bool:
-        return (
-            cls.env_manager.get_system_env().path.absolute().resolve()
-            == env.path.absolute().resolve()
-        )
 
     @classmethod
     def get_active_env_path(cls) -> Path:
@@ -59,3 +53,7 @@ class PoetryAPI:
     @classmethod
     def _get_active_env(cls) -> Env:
         return cls.env_manager.get()
+
+    @classmethod
+    def get_available_env_paths(cls) -> List[Path]:
+        return [env.path.absolute() for env in cls.env_manager.list()]
