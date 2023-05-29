@@ -26,7 +26,7 @@ class TestPoetryEnv:
             @ns.task()
             def test(c):
                 outside_python_bin = get_python_bin(c, "which python")
-                with poetry_venv(c, python_version="3.9", rollback_env=True):
+                with poetry_venv(c, python_version="3.9"):
                     inside_python_bin = get_python_bin(c, "which python")
                     assert "3.9" in inside_python_bin.name
                     assert inside_python_bin != outside_python_bin
@@ -57,13 +57,60 @@ class TestPoetryEnv:
                 outside_python_bin = get_python_bin(c, "which python")
                 c.run("{poetry_bin_str} env use 3.8")
                 previously_active_poetry_python = get_python_bin(c, "{poetry_bin_str} run which python")
-                with poetry_venv(c, python_version="3.9", rollback_env=True):
+                with poetry_venv(c, python_version="3.9"):
                     inside_python_bin = get_python_bin(c, "which python")
                     assert "3.9" in inside_python_bin.name
                     assert inside_python_bin != outside_python_bin
                     assert inside_python_bin != previously_active_poetry_python
                 # since there were an active poetry env before, it should have gone back to it
                 assert previously_active_poetry_python == get_python_bin(c, "{poetry_bin_str} run which python") 
+            """
+        add_test_file(source=task_source, debug_mode=False)
+        result = pytester.run(*inv_bin, "test")
+        assert result.ret == ExitCode.OK
+
+    def test_should_only_activate_the_env_if_necessary(
+        self, pytester, inv_bin, add_test_file, poetry_bin_str
+    ):
+        """poetry_env should only activate the env if necessary."""
+        # language=python prefix="if True:" # IDE language injection
+        task_source = f"""
+            from pathlib import Path
+            from invoke.runners import Runner
+            from invoke_poetry import init_ns, poetry_venv
+            
+            ns, task = init_ns("3.8", supported_python_versions=["3.8", "3.9"], poetry_bin="{poetry_bin_str}")
+            
+            def get_python_bin(c: Runner, cmd: str) -> Path:
+               return Path(c.run(cmd).stdout.rstrip("\\n")).absolute().resolve()
+               
+            @ns.task()
+            def test(c):
+                c.run("{poetry_bin_str} env use 3.8")
+                with poetry_venv(c, python_version="3.8", quiet=False):
+                    pass
+            """
+        add_test_file(source=task_source, debug_mode=False)
+        result = pytester.run(*inv_bin, "test")
+        assert result.ret == ExitCode.OK
+        result.stdout.no_re_match_line(r".*Activated\ env:\ 3\.8")
+
+    def test_should_patch_the_runner(
+        self, pytester, inv_bin, add_test_file, poetry_bin_str
+    ):
+        """poetry_env should patch the runner."""
+        # language=python prefix="if True:" # IDE language injection
+        task_source = f"""
+            from invoke_poetry import init_ns, poetry_venv
+            
+            ns, task = init_ns("3.8", supported_python_versions=["3.8", "3.9"], poetry_bin="{poetry_bin_str}")
+            
+            @ns.task()
+            def test(c):
+                with poetry_venv(c, python_version="3.8", quiet=False):
+                    result = c.run("echo ''")
+                    assert "{poetry_bin_str}" in result.command
+                    assert c.run_outside is not None
             """
         add_test_file(source=task_source, debug_mode=False)
         result = pytester.run(*inv_bin, "test")

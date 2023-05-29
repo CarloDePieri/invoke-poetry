@@ -1,6 +1,6 @@
 import sys
 import textwrap
-from pathlib import Path
+from pathlib import Path, PosixPath
 from typing import Tuple
 
 import pytest
@@ -77,10 +77,10 @@ def connect_debugger():
 
 @pytest.fixture()
 def add_test_file(pytester, connect_debugger):
-    def _add_test_file(source: str, debug_mode: bool = False) -> None:
+    def _add_test_file(source: str, debug_mode: bool = False) -> PosixPath:
         source = textwrap.dedent(source)
         if debug_mode:
             source = connect_debugger() + source
-        pytester.makepyfile(tasks=source)
+        return pytester.makepyfile(tasks=source)
 
     return _add_test_file

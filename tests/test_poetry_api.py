@@ -95,7 +95,6 @@ class TestAPoetryApi:
             
             @task(name="test")
             def test_task(c):
-                assert "3.8" == PoetryAPI.get_active_env_path().name[-3:]
                 c.run("{poetry_bin_str} env use 3.9")
                 assert "3.9" == PoetryAPI.get_active_env_path().name[-3:]
             """

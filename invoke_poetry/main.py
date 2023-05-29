@@ -79,6 +79,7 @@ def poetry_venv(
     python_version: Optional[str] = None,
     rollback_env: bool = True,
     link: bool = False,
+    quiet: bool = False,
 ) -> Generator[None, None, None]:
     """Context manager that will execute all Runner.run() commands inside the selected
     poetry virtualenv.
@@ -101,7 +102,7 @@ def poetry_venv(
         # restore the previous env if needed after the context code block
         with active_env(
             python_version=python_version,
-            quiet=False,
+            quiet=quiet,
             rollback_env=rollback_env,
             link=link,
         ):

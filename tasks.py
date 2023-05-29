@@ -1,11 +1,10 @@
-from time import sleep
 from typing import Optional
 
 from invoke import Result, Runner
 
 from invoke_poetry import add_sub_collection, init_ns, poetry_venv, task_matrix
 
-supported_python_versions = ["3.8", "3.9", "3.10"]
+supported_python_versions = ["3.8", "3.9", "3.10", "3.11"]
 default_python_version = supported_python_versions[0]
 
 
@@ -16,20 +15,13 @@ ns, task = init_ns(
 tc, task_t = add_sub_collection(ns, "test")
 
 
-@task
-def tt(c: Runner) -> None:
-    print("yo")
-
-
 @task_t(name="dev", default=True)
 def test_dev(
     c: Runner, python_version: Optional[str] = None, rollback_env: bool = True
 ) -> Result:
     """Launch all tests. Remember to launch `inv env.init --all` once, first."""
     with poetry_venv(c, python_version=python_version, rollback_env=rollback_env):
-        # print("wait")
-        # sleep(10)
-        result = c.run("python --version")
+        result = c.run("pytest tests")
     return result
 
 
