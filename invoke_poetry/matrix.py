@@ -166,9 +166,8 @@ def task_matrix(
                     # mark the task as completed and register it
                     task.state = TaskState.OK
                     tm.register_task(task)
-            except (BaseException,) as e:
+            except (BaseException,):
                 if not IsInterrupted.by_user:
-                    print(e)
                     # Something bad happened, register the task as failed
                     tm.register_new_task(name=name, state=TaskState.FAILED)
                 else:
