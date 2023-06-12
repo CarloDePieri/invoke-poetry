@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, List, Optional
 
-from invoke import Runner
+from invoke import Runner  # type: ignore[attr-defined]
 
 from invoke_poetry.collection import PatchedInvokeCollection
 from invoke_poetry.logs import Colors, error, info, ok, warn

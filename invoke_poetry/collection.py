@@ -1,13 +1,13 @@
 from typing import Any, Callable, TypeVar, Union, cast
 
-from invoke import Collection as InvokeCollection
-from invoke import Task, task
+from invoke import Collection as InvokeCollection  # type: ignore[attr-defined]
+from invoke import Task, task  # type: ignore[attr-defined]
 
 InvokeTask = TypeVar("InvokeTask", bound=Task)
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-class PatchedInvokeCollection(InvokeCollection):  # type: ignore[misc]
+class PatchedInvokeCollection(InvokeCollection):
     """Patched invoke Collection to suit my workflow.
 
     Allows to define tasks in (sub)collections; waiting for https://github.com/pyinvoke/invoke/pull/789 or

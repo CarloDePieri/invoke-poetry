@@ -4,7 +4,7 @@ import sys
 from contextlib import contextmanager
 from typing import Any, Callable, Generator, Iterable, List, Optional, Tuple, Union
 
-from invoke import Runner
+from invoke import Runner  # type: ignore[attr-defined]
 from invoke.exceptions import UnexpectedExit
 
 from invoke_poetry.collection import F, InvokeTask, PatchedInvokeCollection
@@ -138,7 +138,7 @@ def patched_runner(c: Runner) -> Generator[None, None, None]:
     # patch the run method inside this context manager
     c.run_outside = c.run
 
-    def poetry_run(*args: Any, **kwargs: Any) -> None:
+    def poetry_run(*args: Any, **kwargs: Any) -> Any:
         poetry_run_cmd = Settings.poetry_bin + " run"
         if "command" in kwargs:
             cmd = kwargs["command"]
@@ -175,7 +175,7 @@ def get_additional_args() -> List[str]:
 def get_additional_args_string() -> str:
     """Gather all command line arguments passed after a '--' and turn them into a string, trying to preserve quotes."""
 
-    def handle_spaces_and_quotes(string):
+    def handle_spaces_and_quotes(string: str) -> str:
         """Try to handle spaces and quoted arguments."""
         if " " in string:
             if '"' in string and "'" in string:

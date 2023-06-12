@@ -1,10 +1,7 @@
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Iterable, Optional
 
-from invoke import Runner
-from invoke.runners import Result
+from invoke import Result, Runner  # type: ignore[attr-defined]
 
 
 class Settings:
@@ -44,7 +41,7 @@ class Settings:
     @staticmethod
     def _install_project_dependencies_default_hook(
         c: Runner, quiet: bool = True
-    ) -> Result:
+    ) -> Optional[Result]:
         """The default hook for installing project dependencies: it will simply run 'poetry install'."""
         # noinspection PyTypeChecker
         return c.run(Settings.poetry_bin + " install", hide=quiet, pty=True)
