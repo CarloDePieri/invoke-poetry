@@ -30,20 +30,26 @@ _, task_p = add_sub_collection(ns, "publish")
 
 
 #
-# LINTING AND FORMATTING
+# LINTING, FORMATTING AND TYPE CHECKING
 #
 @task
-def checks(c: Runner, _filter: Optional[str] = None):
+def checks(
+    c: Runner,
+    _filter: Optional[str] = None,
+    python_version: str = default_python_version,
+) -> TaskMatrix:
     """Run several formatting, linting and static type checks.
 
-    A subset of checks to perform can be specified with the `filter` flag as a list of names separated
+    A subset of checks to perform can be specified with the `--filter` flag as a list of names separated
     by a comma (e.g. mypy,black).
+    By default the checks are launched in the dev environment; if needed, a different one can be specified by the
+    `--python-version` flag.
     """
     checklist = {
         "black": f"black --check {project_folder} {test_folder} tasks.py",
         "isort": f"isort --check {project_folder} {test_folder} tasks.py",
         "flake8": f"flake8 {project_folder}",
-        "mypy": f"mypy --strict --no-error-summary {project_folder}",
+        "mypy": f"mypy {project_folder} tasks.py",
     }
 
     if _filter:
@@ -54,7 +60,7 @@ def checks(c: Runner, _filter: Optional[str] = None):
                 f"{name} is not a valid check! Choose from: {', '.join(checklist.keys())}"
             )
 
-    with poetry_venv(c):
+    with poetry_venv(c, python_version=python_version):
         results = task_matrix(
             hook=c.run,
             hook_args_builder=lambda name: (
@@ -75,7 +81,7 @@ def checks(c: Runner, _filter: Optional[str] = None):
 @task_t(name="dev", default=True)
 def test_dev(
     c: Runner, python_version: Optional[str] = None, rollback_env: bool = True
-) -> Result:
+) -> Optional[Result]:
     """Launch all tests. Remember to launch `inv env.init --all` once, first."""
     with poetry_venv(c, python_version=python_version, rollback_env=rollback_env):
         # This allows to pass additional parameter to pytest like this: inv test -- -m 'not slow'
@@ -110,7 +116,7 @@ def test_cov(
     python_version: Optional[str] = None,
     rollback_env: bool = True,
     open_report: bool = True,
-) -> Result:
+) -> Optional[Result]:
     """Launch the test suite and produce a coverage report."""
     with poetry_venv(c, python_version=python_version, rollback_env=rollback_env):
         result = c.run(
@@ -122,7 +128,7 @@ def test_cov(
 
 
 @task_c(name="open_report")
-def test_cov_report(c: Runner) -> Result:
+def test_cov_report(c: Runner) -> Optional[Result]:
     """Open the latest coverage report."""
     return c.run(f"xdg-open {coverage_report_folder}/index.html")
 
@@ -131,20 +137,20 @@ def test_cov_report(c: Runner) -> Result:
 # PYPI
 #
 @task(name="build")
-def build(c: Runner) -> Result:
+def build(c: Runner) -> Optional[Result]:
     """Build the project with poetry. Artifact will be produced in the dist/ folder. This is needed to publish on
     pypi."""
     return c.run("poetry build")
 
 
 @task_p(name="pypi", default=True)
-def publish(c: Runner) -> Result:
+def publish(c: Runner) -> Optional[Result]:
     """Publish the project on pypi with poetry. A project build is needed first."""
     return c.run("poetry publish")
 
 
 @task_p(name="pypi_test")
-def publish_test(c: Runner) -> Result:
+def publish_test(c: Runner) -> Optional[Result]:
     """Publish the project on testing pypi repository with poetry. A project build is needed first."""
     return c.run("poetry publish -r testpypi")
 
