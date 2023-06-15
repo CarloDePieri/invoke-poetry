@@ -8,7 +8,7 @@
 import sys
 from typing import Any, Callable, Optional, Protocol, TypeVar, Union, cast, overload
 
-from invoke import Collection, Result, Runner, Task, task  # type: ignore[attr-defined]
+from invoke import Collection, Task, task  # type: ignore[attr-defined]
 
 if sys.version_info < (3, 10):
     from typing_extensions import ParamSpec

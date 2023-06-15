@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import sys
 from contextlib import contextmanager
-from typing import Any, Callable, Generator, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Generator, Iterable, List, Optional, Tuple
 
-from invoke import Runner  # type: ignore[attr-defined]
+from invoke import Collection, Runner  # type: ignore[attr-defined]
 from invoke.exceptions import UnexpectedExit
 
-from invoke_poetry.collection import F, InvokeTask, PatchedInvokeCollection
+from invoke_poetry import CollectionDecorator, OverloadedDecoratorType
 from invoke_poetry.env import active_env, env, validate_env_version
 from invoke_poetry.logs import error, warn
 from invoke_poetry.matrix import TaskMatrix
@@ -22,7 +22,7 @@ def init_ns(
     install_project_dependencies_hook: Optional[Callable[..., Any]] = None,
     poetry_bin: Optional[str] = None,
     venv_link_path: Optional[str] = None,
-) -> Tuple[PatchedInvokeCollection, Callable[..., Any]]:
+) -> Tuple[Collection, OverloadedDecoratorType]:
     """Prepare the root invoke collection and set all required settings.
     Invoke REQUIRES a root collection specifically named 'ns' in the tasks.py file, so use this function like this:
 
@@ -37,7 +37,7 @@ def init_ns(
         c.run("echo 'hello world!'")
     ```
     """
-    ns = PatchedInvokeCollection()
+    ns = Collection()
 
     # Construct a default supported python versions
     if not supported_python_versions:
@@ -58,19 +58,17 @@ def init_ns(
     # inject the env collection
     ns.add_collection(env)
 
-    return ns, ns.task
+    return ns, CollectionDecorator(ns).decorator
 
 
 def add_sub_collection(
-    collection: PatchedInvokeCollection, name: str
-) -> Tuple[
-    PatchedInvokeCollection, Callable[..., Union[InvokeTask, Callable[[F], InvokeTask]]]
-]:
+    collection: Collection, name: str
+) -> Tuple[Collection, OverloadedDecoratorType]:
     """Convenience function to create a new sub collection in a collection and get access to the new `.task`
     decorator."""
-    sub = PatchedInvokeCollection(name)
+    sub = Collection(name)
     collection.add_collection(sub)
-    return sub, sub.task
+    return sub, CollectionDecorator(sub).decorator
 
 
 @contextmanager

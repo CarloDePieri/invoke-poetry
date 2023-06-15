@@ -3,9 +3,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, List, Optional
 
-from invoke import Runner  # type: ignore[attr-defined]
+from invoke import Collection, Runner  # type: ignore[attr-defined]
 
-from invoke_poetry.collection import PatchedInvokeCollection
+from invoke_poetry import CollectionDecorator
 from invoke_poetry.logs import Colors, error, info, ok, warn
 from invoke_poetry.poetry_api import PoetryAPI
 from invoke_poetry.settings import Settings
@@ -158,10 +158,11 @@ def remember_active_env(quiet: bool = True) -> Generator[None, None, None]:
 # INVOKE ENV COLLECTION
 #
 
-env = PatchedInvokeCollection("env")
+env = Collection("env")
+env_task = CollectionDecorator(env).decorator
 
 
-@env.task(
+@env_task(
     name="use",
     default=True,
     help={
@@ -182,7 +183,7 @@ def env_use_task(
     ok(f"Env {python_version} activated.")
 
 
-@env.task(name="list")
+@env_task(name="list")
 def env_list_task(_: Runner) -> None:
     """Show all associated venv and the active one."""
     info("Poetry virtual environments:")
@@ -190,7 +191,7 @@ def env_list_task(_: Runner) -> None:
         print(version)
 
 
-@env.task(
+@env_task(
     name="remove",
     help={
         "python_version": "target associated venv",
@@ -229,7 +230,7 @@ def env_remove_task(
         )
 
 
-@env.task(
+@env_task(
     name="init",
     help={
         "python_version": "target associated venv",

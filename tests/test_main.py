@@ -23,7 +23,7 @@ class TestPoetryEnv:
             def get_python_bin(c: Runner, cmd: str) -> Path:
                return Path(c.run(cmd).stdout.rstrip("\\n")).absolute().resolve()
                
-            @ns.task()
+            @task()
             def test(c):
                 outside_python_bin = get_python_bin(c, "which python")
                 with poetry_venv(c, python_version="3.9"):
@@ -52,7 +52,7 @@ class TestPoetryEnv:
             def get_python_bin(c: Runner, cmd: str) -> Path:
                return Path(c.run(cmd).stdout.rstrip("\\n")).absolute().resolve()
                
-            @ns.task()
+            @task()
             def test(c):
                 outside_python_bin = get_python_bin(c, "which python")
                 c.run("{poetry_bin_str} env use 3.8")
@@ -84,7 +84,7 @@ class TestPoetryEnv:
             def get_python_bin(c: Runner, cmd: str) -> Path:
                return Path(c.run(cmd).stdout.rstrip("\\n")).absolute().resolve()
                
-            @ns.task()
+            @task()
             def test(c):
                 c.run("{poetry_bin_str} env use 3.8")
                 with poetry_venv(c, python_version="3.8", quiet=False):
@@ -105,7 +105,7 @@ class TestPoetryEnv:
             
             ns, task = init_ns("3.8", supported_python_versions=["3.8", "3.9"], poetry_bin="{poetry_bin_str}")
             
-            @ns.task()
+            @task()
             def test(c):
                 with poetry_venv(c, python_version="3.8", quiet=False):
                     result = c.run("echo ''")
@@ -128,7 +128,7 @@ class TestAnyAdditionalArgs:
             
             ns, task = init_ns("3.8", supported_python_versions=["3.8", "3.9"])
             
-            @ns.task()
+            @task()
             def test(_):
                 print(get_additional_args())
             """
@@ -149,7 +149,7 @@ class TestAnyAdditionalArgs:
             
             ns, task = init_ns("3.8", supported_python_versions=["3.8", "3.9"])
 
-            @ns.task()
+            @task()
             def test(_):
                 print(get_additional_args_string())
             """
@@ -168,7 +168,7 @@ class TestAnyAdditionalArgs:
             
             ns, task = init_ns("3.8", supported_python_versions=["3.8", "3.9"])
 
-            @ns.task()
+            @task()
             def test(_):
                 print(get_additional_args_string())
             """
@@ -179,3 +179,62 @@ class TestAnyAdditionalArgs:
         result = pytester.run(*inv_bin, "test")
         assert result.ret == ExitCode.OK
         assert result.outlines == [""]
+
+
+class TestCollectionHandlers:
+    """Test: CollectionHandlers..."""
+
+    def test_should_allow_to_easily_add_tasks(self, pytester, inv_bin, add_test_file):
+        """Collection handlers should allow to easily add tasks."""
+        task_name = "hello"
+        task_out = "hi!"
+
+        # language=python prefix="if True:" # IDE language injection
+        task_source = f"""
+            from invoke_poetry import init_ns
+            
+            ns, task = init_ns("3.8")
+            
+            @task(name="{task_name}")
+            def test_task(c):
+                c.run("echo '{task_out}'")
+            """
+        add_test_file(source=task_source, debug_mode=False)
+
+        # check that the task is available
+        result = pytester.run(*inv_bin, "-l")
+        result.stdout.re_match_lines([r"Available tasks:", r".*" + task_name])
+
+        # actually run the task
+        result = pytester.run(*inv_bin, task_name)
+        result.stdout.re_match_lines([r"" + task_out])
+
+    def test_should_allow_to_add_sub_collections_and_relative_tasks(
+        self, pytester, inv_bin, add_test_file
+    ):
+        """Collection handlers should allow to add sub-collections and relative tasks."""
+        collection = "test"
+        name = "matrix"
+        task_name = f"{collection}.{name}"
+        out = "Hello world!"
+
+        # language=python prefix="if True:" # IDE language injection
+        task_source = f"""
+            from invoke_poetry import init_ns, add_sub_collection
+            
+            ns, task = init_ns("3.8")
+            test, taskt = add_sub_collection(ns, "{collection}")
+            
+            @taskt(name="{name}")
+            def test_task(c):
+                c.run("echo '{out}'")
+            """
+        add_test_file(source=task_source, debug_mode=False)
+
+        # check that the task is available
+        result = pytester.run(*inv_bin, "-l")
+        result.stdout.re_match_lines([r"Available tasks:", r".*" + task_name])
+
+        # actually run the task
+        result = pytester.run(*inv_bin, task_name)
+        result.stdout.re_match_lines([out])
