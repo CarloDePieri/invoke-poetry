@@ -31,6 +31,12 @@ def poetry_bin(venv_interpreter) -> Tuple[Path, Path]:
 
 
 @pytest.fixture
+def mypy_bin(venv_interpreter) -> Tuple[Path, Path]:
+    """Return a Tuple containing the interpreter and the invoke binary."""
+    return venv_interpreter, venv_interpreter.parent.absolute() / "mypy"
+
+
+@pytest.fixture
 def poetry_bin_str(poetry_bin) -> str:
     """Return a string in the form of 'interpreter poetry_bin'."""
     return f"{poetry_bin[0]} {poetry_bin[1]}"

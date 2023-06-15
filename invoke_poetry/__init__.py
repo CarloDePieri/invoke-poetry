@@ -1,3 +1,8 @@
+from invoke_poetry.decorator import (
+    CollectionDecorator,
+    OverloadedDecoratorType,
+    cast_to_task,
+)
 from invoke_poetry.env import remember_active_env
 from invoke_poetry.main import (
     add_sub_collection,
@@ -19,4 +24,7 @@ __all__ = [
     "task_matrix",
     "get_additional_args",
     "get_additional_args_string",
+    "CollectionDecorator",
+    "OverloadedDecoratorType",
+    "cast_to_task",
 ]
