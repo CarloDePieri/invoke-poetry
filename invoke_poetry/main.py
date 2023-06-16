@@ -7,7 +7,7 @@ from typing import Any, Callable, Generator, Iterable, List, Optional, Tuple
 from invoke import Collection, Context, Result  # type: ignore[attr-defined]
 from invoke.exceptions import UnexpectedExit
 
-from invoke_poetry import CollectionDecorator, OverloadedDecoratorType
+from invoke_poetry.decorator import CollectionDecorator, OverloadedDecoratorType
 from invoke_poetry.env import active_env, env, validate_env_version
 from invoke_poetry.logs import error, warn
 from invoke_poetry.matrix import TaskMatrix

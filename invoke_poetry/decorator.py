@@ -92,6 +92,6 @@ class OverloadedDecoratorType(Protocol):
         """Decorator type when being used as `@decorator(...)`."""
 
 
-def cast_to_task(func: F) -> Task[F]:
+def cast_to_task_type(func: F) -> Task[F]:
     """Convenience used to cast a function decorated with `CollectionDecorator` back to a `invoke.Task`."""
     return cast(Task[F], func)

@@ -5,7 +5,7 @@ from typing import Generator, List, Optional
 
 from invoke import Collection, Context  # type: ignore[attr-defined]
 
-from invoke_poetry import CollectionDecorator
+from invoke_poetry.decorator import CollectionDecorator
 from invoke_poetry.logs import Colors, error, info, ok, warn
 from invoke_poetry.poetry_api import PoetryAPI
 from invoke_poetry.settings import Settings

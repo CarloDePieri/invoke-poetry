@@ -14,7 +14,7 @@ class TestACollectionDecorator:
         task_source = f"""
             from typing import Optional
             from invoke import Collection, Context, Result  # type: ignore[attr-defined]
-            from invoke_poetry import CollectionDecorator
+            from invoke_poetry.decorator import CollectionDecorator
             
             ns = Collection()
             ds = Collection("docs")
@@ -63,7 +63,8 @@ class TestACollectionDecorator:
                 from typing_extensions import reveal_type
             else:
                 from typing import reveal_type
-            from invoke_poetry import OverloadedDecoratorType, cast_to_task
+            from invoke_poetry import cast_to_task_type
+            from invoke_poetry.decorator import OverloadedDecoratorType
                 
             def get_decorator(collection: Collection) -> OverloadedDecoratorType:
                 return CollectionDecorator(collection).decorator
@@ -84,7 +85,7 @@ class TestACollectionDecorator:
                 
             reveal_type(types_a)
             reveal_type(types_b)
-            reveal_type(cast_to_task(types_a))
+            reveal_type(cast_to_task_type(types_a))
             """
         add_test_file(source=self.task_source + task_source, debug_mode=False)
 
