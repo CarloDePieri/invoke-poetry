@@ -4,7 +4,7 @@ import sys
 from contextlib import contextmanager
 from typing import Any, Callable, Generator, Iterable, List, Optional, Tuple
 
-from invoke import Collection, Runner  # type: ignore[attr-defined]
+from invoke import Collection, Context, Result  # type: ignore[attr-defined]
 from invoke.exceptions import UnexpectedExit
 
 from invoke_poetry import CollectionDecorator, OverloadedDecoratorType
@@ -72,42 +72,53 @@ def add_sub_collection(
 
 
 @contextmanager
-def poetry_venv(
-    c: Runner,
-    python_version: Optional[str] = None,
+def poetry_runner(
+    c: Context,
+    python_env: Optional[str] = None,
     rollback_env: bool = True,
     link: bool = False,
     quiet: bool = False,
-) -> Generator[None, None, None]:
-    """Context manager that will execute all Runner.run() commands inside the selected
-    poetry virtualenv.
-    It will restore the previous virtualenv (if one was active) after it's done, by default.
+) -> Generator[Callable[..., Optional[Result]], None, None]:
+    """
+    Context manager offering a patched `Context.run` function that will launch the given command in the specified poetry
+    environment. This is possible by activating the env with `poetry env use` and then executing the command by
+    prepending `poetry run`.
+    The previous virtualenv (if one was active) will be restored after the context manager exits, by default.
+    It will also react correctly to user interruptions via ctrl-c.
 
     ```python
     @task
-    def get_version(c, python_version="3.7"):
+    def get_version(c: Context, python_version: str = "3.7"):
 
-        with poetry_venv(c, python_version):
-            c.run("python --version")  # will run as 'poetry run python --version'
-
-        c.run("python --version")  # will run normally as 'python --version'
+        with poetry_runner(c, python_env=python_version) as run:
+            run("python --version")  # will run as 'poetry run python --version' in the specified venv
+            c.run("python --version")  # will run normally as 'python --version' in the global env
     ```
     """
     with user_can_interrupt():
         # validate the given python version
-        python_version = validate_env_version(python_version)
+        python_env = validate_env_version(python_env)
 
         # restore the previous env if needed after the context code block
         with active_env(
-            python_version=python_version,
+            python_version=python_env,
             quiet=quiet,
             rollback_env=rollback_env,
             link=link,
         ):
-            # patch the runner to prepend 'poetry run' to commands
-            with patched_runner(c):
-                # Execute the context manager code block
-                yield
+            # prepare the patched runner and yield it
+            def poetry_run(*args: Any, **kwargs: Any) -> Optional[Result]:
+                """A patched runner that prepends 'poetry run' to the given command."""
+                poetry_run_cmd = Settings.poetry_bin + " run"
+                if "command" in kwargs:
+                    cmd = kwargs["command"]
+                    command = f"{poetry_run_cmd} {cmd}"
+                    del kwargs["command"]
+                else:
+                    command = f"{poetry_run_cmd} {args[0]}"
+                return c.run(command=command, **kwargs)
+
+            yield poetry_run
 
 
 @contextmanager
@@ -130,32 +141,7 @@ def user_can_interrupt() -> Generator[None, None, None]:
             raise e
 
 
-@contextmanager
-def patched_runner(c: Runner) -> Generator[None, None, None]:
-    """TODO"""
-    # patch the run method inside this context manager
-    c.run_outside = c.run
-
-    def poetry_run(*args: Any, **kwargs: Any) -> Any:
-        poetry_run_cmd = Settings.poetry_bin + " run"
-        if "command" in kwargs:
-            cmd = kwargs["command"]
-            command = f"{poetry_run_cmd} {cmd}"
-            del kwargs["command"]
-        else:
-            command = f"{poetry_run_cmd} {args[0]}"
-        return c.run_outside(command=command, **kwargs)
-
-    c.run = poetry_run
-    try:
-        yield
-    finally:
-        # restore the original run method
-        c.run = c.run_outside
-        delattr(c, "run_outside")
-
-
-def install_project_dependencies(c: Runner, *args: Any, **kwargs: Any) -> Any:
+def install_project_dependencies(c: Context, *args: Any, **kwargs: Any) -> Any:
     """A convenience function to call the install_project_dependencies hook (either the custom or the default one).
     It will pass forward every argument."""
     return Settings.install_project_dependencies_hook(c, *args, **kwargs)

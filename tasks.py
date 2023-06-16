@@ -1,13 +1,13 @@
 from typing import Optional
 
-from invoke import Result, Runner  # type: ignore[attr-defined]
+from invoke import Context, Result  # type: ignore[attr-defined]
 
 from invoke_poetry import (
     TaskMatrix,
     add_sub_collection,
     get_additional_args_string,
     init_ns,
-    poetry_venv,
+    poetry_runner,
     task_matrix,
 )
 from invoke_poetry.logs import error
@@ -34,7 +34,7 @@ _, task_p = add_sub_collection(ns, "publish")
 #
 @task
 def checks(
-    c: Runner,
+    c: Context,
     _filter: Optional[str] = None,
     python_version: str = default_python_version,
 ) -> TaskMatrix:
@@ -60,9 +60,9 @@ def checks(
                 f"{name} is not a valid check! Choose from: {', '.join(checklist.keys())}"
             )
 
-    with poetry_venv(c, python_version=python_version):
+    with poetry_runner(c, python_env=python_version) as run:
         results = task_matrix(
-            hook=c.run,
+            hook=run,
             hook_args_builder=lambda name: (
                 [checklist[name]],
                 {"pty": True},
@@ -80,18 +80,18 @@ def checks(
 #
 @task_t(name="dev", default=True)
 def test_dev(
-    c: Runner, python_version: Optional[str] = None, rollback_env: bool = True
+    c: Context, python_version: Optional[str] = None, rollback_env: bool = True
 ) -> Optional[Result]:
     """Launch all tests. Remember to launch `inv env.init --all` once, first."""
-    with poetry_venv(c, python_version=python_version, rollback_env=rollback_env):
+    with poetry_runner(c, python_env=python_version, rollback_env=rollback_env) as run:
         # This allows to pass additional parameter to pytest like this: inv test -- -m 'not slow'
         command = "pytest" + get_additional_args_string()
-        result = c.run(command)
+        result = run(command)
     return result
 
 
 @task_t(name="matrix")
-def test_matrix(c: Runner) -> TaskMatrix:
+def test_matrix(c: Context) -> TaskMatrix:
     """Launch the test suite with all supported python version."""
     results = task_matrix(
         hook=test_dev,
@@ -112,14 +112,14 @@ def test_matrix(c: Runner) -> TaskMatrix:
 #
 @task_c(name="run_tests", default=True)
 def test_cov(
-    c: Runner,
+    c: Context,
     python_version: Optional[str] = None,
     rollback_env: bool = True,
     open_report: bool = True,
 ) -> Optional[Result]:
     """Launch the test suite and produce a coverage report."""
-    with poetry_venv(c, python_version=python_version, rollback_env=rollback_env):
-        result = c.run(
+    with poetry_runner(c, python_env=python_version, rollback_env=rollback_env) as run:
+        result = run(
             f"pytest --cov=invoke_poetry --cov-report html:{coverage_report_folder}{get_additional_args_string()}"
         )
         if open_report:
@@ -128,7 +128,7 @@ def test_cov(
 
 
 @task_c(name="open_report")
-def test_cov_report(c: Runner) -> Optional[Result]:
+def test_cov_report(c: Context) -> Optional[Result]:
     """Open the latest coverage report."""
     return c.run(f"xdg-open {coverage_report_folder}/index.html")
 
@@ -137,20 +137,20 @@ def test_cov_report(c: Runner) -> Optional[Result]:
 # PYPI
 #
 @task(name="build")
-def build(c: Runner) -> Optional[Result]:
+def build(c: Context) -> Optional[Result]:
     """Build the project with poetry. Artifact will be produced in the dist/ folder. This is needed to publish on
     pypi."""
     return c.run("poetry build")
 
 
 @task_p(name="pypi", default=True)
-def publish(c: Runner) -> Optional[Result]:
+def publish(c: Context) -> Optional[Result]:
     """Publish the project on pypi with poetry. A project build is needed first."""
     return c.run("poetry publish")
 
 
 @task_p(name="pypi_test")
-def publish_test(c: Runner) -> Optional[Result]:
+def publish_test(c: Context) -> Optional[Result]:
     """Publish the project on testing pypi repository with poetry. A project build is needed first."""
     return c.run("poetry publish -r testpypi")
 

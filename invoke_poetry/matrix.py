@@ -126,9 +126,9 @@ def task_matrix(
 
     ```python
     @task
-    def print_python_version(c: Runner, python_version: str, restore_venv: bool =True) -> None:
-        with poetry_venv(c, python_version=python_version, restore_venv=restore_venv):
-            c.run("python --version")
+    def print_python_version(c: Context, python_env: str, rollback_env: bool =True) -> None:
+        with poetry_runner(c, python_version=python_version, rollback_env=rollback_env) as run:
+            run("python --version")
 
     @task
     def matrix(c: Runner) -> None:
@@ -136,7 +136,7 @@ def task_matrix(
             hook=print_python_version,
             hook_args_builder=lambda name: (
                 [c],
-                {"python_version": name, "restore_venv": False},
+                {"python_env": name, "rollback_env": False},
             ),
             task_names=['3.7', '3.8'],
         )

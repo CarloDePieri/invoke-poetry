@@ -20,9 +20,8 @@ class TestAPoetryApi:
             from invoke import task
             from invoke_poetry.poetry_api import PoetryAPI
             
-            # noinspection PyUnusedLocal
             @task(name="test")
-            def test_task(c):
+            def test_task(_):
                 PoetryAPI.init()
                 assert hasattr(PoetryAPI.poetry, "VERSION")
                 assert hasattr(PoetryAPI.env_manager, "ENVS_FILE")
@@ -45,9 +44,8 @@ class TestAPoetryApi:
             
             ns, task = init_ns("3.8", supported_python_versions=["3.8", "3.9"])
             
-            # noinspection PyUnusedLocal
             @task(name="test")
-            def test_task(c):
+            def test_task(_):
                 assert PoetryAPI.poetry
                 assert PoetryAPI.env_manager
             """
@@ -196,7 +194,6 @@ class TestAPoetryApi:
             
             ns, task = init_ns("3.8", supported_python_versions=["3.8", "3.9"])
             
-            # noinspection PyUnusedLocal
             @task(name="test")
             def test_task(c):
                 version = "3.9"
@@ -226,7 +223,6 @@ class TestAPoetryApi:
             
             ns, task = init_ns("3.8", supported_python_versions=["3.8", "3.9"])
             
-            # noinspection PyUnusedLocal
             @task(name="test")
             def test_task(c):
                 version = "3.9"

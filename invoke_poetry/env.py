@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, List, Optional
 
-from invoke import Collection, Runner  # type: ignore[attr-defined]
+from invoke import Collection, Context  # type: ignore[attr-defined]
 
 from invoke_poetry import CollectionDecorator
 from invoke_poetry.logs import Colors, error, info, ok, warn
@@ -28,7 +28,7 @@ def env_activate(python_version: str, link: bool = True) -> None:
 
 
 def env_init(
-    c: Runner, python_version: str, link: bool = True, rebuild: bool = False
+    c: Context, python_version: str, link: bool = True, rebuild: bool = False
 ) -> None:
     """Create a poetry env, installing all project dependencies. If needed, it can rebuild said env."""
 
@@ -171,7 +171,7 @@ env_task = CollectionDecorator(env).decorator
     },
 )
 def env_use_task(
-    _: Runner,
+    _: Context,
     python_version: Optional[str] = None,
     no_link: bool = False,
 ) -> None:
@@ -184,7 +184,7 @@ def env_use_task(
 
 
 @env_task(name="list")
-def env_list_task(_: Runner) -> None:
+def env_list_task(_: Context) -> None:
     """Show all associated venv and the active one."""
     info("Poetry virtual environments:")
     for version in env_get_list():
@@ -200,7 +200,7 @@ def env_list_task(_: Runner) -> None:
     },
 )
 def env_remove_task(
-    _: Runner,
+    _: Context,
     python_version: Optional[str] = None,
     rm_link: bool = True,
     all: bool = False,
@@ -240,7 +240,7 @@ def env_remove_task(
     },
 )
 def env_init_task(
-    c: Runner,
+    c: Context,
     python_version: Optional[str] = None,
     link: bool = True,
     all: bool = False,

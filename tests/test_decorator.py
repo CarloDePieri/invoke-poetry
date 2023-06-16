@@ -13,7 +13,7 @@ class TestACollectionDecorator:
         # language=python prefix="if True:" # IDE language injection
         task_source = f"""
             from typing import Optional
-            from invoke import Collection, Runner, Result  # type: ignore[attr-defined]
+            from invoke import Collection, Context, Result  # type: ignore[attr-defined]
             from invoke_poetry import CollectionDecorator
             
             ns = Collection()
@@ -22,11 +22,11 @@ class TestACollectionDecorator:
             doc_task = CollectionDecorator(ds).decorator
             
             @doc_task
-            def docs_a(c: Runner) -> Optional[Result]:
+            def docs_a(c: Context) -> Optional[Result]:
                 return c.run("echo 'a'")
             
             @doc_task(default=True)
-            def docs_b(c: Runner, version: str = "") -> Optional[Result]:
+            def docs_b(c: Context, version: str = "") -> Optional[Result]:
                 return c.run(f"echo 'b{{version}}'")
             """
         add_test_file(source=task_source, debug_mode=False)
@@ -55,7 +55,7 @@ class TestACollectionDecorator:
 
         # !ADD the following source to the self.task_source!
 
-        # language=python prefix="doc_task, docs_a, docs_b = lambda: None ns, CollectionDecorator, Collection, Runner = None if True:" # noqa
+        # language=python prefix="doc_task, docs_a, docs_b = lambda: None ns, CollectionDecorator, Collection, Context = None if True:" # noqa
         task_source = f"""
             import sys
             
@@ -73,13 +73,13 @@ class TestACollectionDecorator:
             type_task = get_decorator(ts)
             
             @type_task
-            def types_a(c: Runner) -> int:
+            def types_a(c: Context) -> int:
                 reveal_type(docs_a)
                 reveal_type(docs_b)
                 return 42
                 
             @type_task(default=True)
-            def types_b(c: Runner) -> str:
+            def types_b(c: Context) -> str:
                 return "42" 
                 
             reveal_type(types_a)
@@ -105,18 +105,18 @@ class TestACollectionDecorator:
         result = pytester.run(*mypy_bin, "--strict", "tasks.py")
         result.stdout.re_match_lines(
             [
-                # def (c: invoke.runners.Runner) -> Union[invoke.runners.Result, None]
-                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.runners\.Runner\)\ "
+                # def (c: invoke.context.Context) -> Union[invoke.runners.Result, None]
+                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.context\.Context\)\ "
                 r"\-\>\ Union\[invoke\.runners\.Result\,\ None\]\"",
-                # def (c: invoke.runners.Runner, version: builtins.str =) -> Union[invoke.runners.Result, None]
-                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.runners\.Runner\,\ version\:"
+                # def (c: invoke.context.Context, version: builtins.str =) -> Union[invoke.runners.Result, None]
+                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.context\.Context\,\ version\:"
                 r"\ builtins\.str\ \=\)\ \-\>\ Union\[invoke\.runners\.Result\,\ None\]\"",
-                # def (c: invoke.runners.Runner) -> builtins.int
-                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.runners\.Runner\)\ \-\>\ builtins\.int\"",
-                # def (c: invoke.runners.Runner) -> builtins.str
-                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.runners\.Runner\)\ \-\>\ builtins\.str\"",
-                # invoke.tasks.Task[def (c: invoke.runners.Runner) -> builtins.int]
-                r".*note\:\ Revealed\ type\ is\ \"invoke\.tasks\.Task\[def\ \(c\:\ invoke\.runners\.Runner\)"
+                # def (c: invoke.context.Context) -> builtins.int
+                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.context\.Context\)\ \-\>\ builtins\.int\"",
+                # def (c: invoke.context.Context) -> builtins.str
+                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.context\.Context\)\ \-\>\ builtins\.str\"",
+                # invoke.tasks.Task[def (c: invoke.context.Context) -> builtins.int]
+                r".*note\:\ Revealed\ type\ is\ \"invoke\.tasks\.Task\[def\ \(c\:\ invoke\.context\.Context\)"
                 r"\ \-\>\ builtins\.int\]\"",
             ]
         )

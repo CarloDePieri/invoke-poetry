@@ -10,7 +10,7 @@ from invoke_poetry.main import (
     get_additional_args_string,
     init_ns,
     install_project_dependencies,
-    poetry_venv,
+    poetry_runner,
 )
 from invoke_poetry.matrix import TaskMatrix, task_matrix
 
@@ -18,7 +18,7 @@ __all__ = [
     "add_sub_collection",
     "init_ns",
     "install_project_dependencies",
-    "poetry_venv",
+    "poetry_runner",
     "remember_active_env",
     "TaskMatrix",
     "task_matrix",

@@ -15,12 +15,12 @@ class TestATaskMatrix:
 
         # language=python prefix="names=('')\nif True:" # IDE language injection
         task_source = f"""
-            from invoke import Runner
+            from invoke import Context
             from invoke_poetry import init_ns, task_matrix
             
             ns, task = init_ns("3.8")
             
-            def my_hook(c: Runner, name: str, tag: str):
+            def my_hook(c: Context, name: str, tag: str):
                 c.run(f"echo 'name: {{name}} {{tag}}'")
                     
             @task(name="matrix")
@@ -44,12 +44,12 @@ class TestATaskMatrix:
 
         # language=python prefix="names=('')\nif True:" # IDE language injection
         task_source = f"""
-            from invoke import Runner
+            from invoke import Context
             from invoke_poetry import init_ns, task_matrix
             
             ns, task = init_ns("3.8")
             
-            def my_hook(c: Runner, name: str, tag: str):
+            def my_hook(c: Context, name: str, tag: str):
                 c.run(f"echo 'name: {{name}} {{tag}}'")
                     
             @task(name="matrix")
@@ -76,12 +76,12 @@ class TestATaskMatrix:
 
         # language=python prefix="names=('')\nif True:" # IDE language injection
         task_source = f"""
-            from invoke import Runner
+            from invoke import Context
             from invoke_poetry import init_ns, task_matrix
             
             ns, task = init_ns("3.8")
             
-            def my_hook(_: Runner, __: str, ___: str):
+            def my_hook(_: Context, __: str, ___: str):
                 raise Exception
                     
             @task(name="matrix")
@@ -109,12 +109,12 @@ class TestATaskMatrix:
 
         # language=python prefix="names=('')\nif True:" # IDE language injection
         task_source = f"""
-            from invoke import Runner
+            from invoke import Context
             from invoke_poetry import init_ns, task_matrix
             
             ns, task = init_ns("3.8")
             
-            def my_hook(c: Runner, name: str, tag: str):
+            def my_hook(c: Context, name: str, tag: str):
                 if name == "task_b":
                     import os
                     import signal 
@@ -149,12 +149,12 @@ class TestATaskMatrix:
 
         # language=python prefix="names=('')\nif True:" # IDE language injection
         task_source = f"""
-            from invoke import Runner
+            from invoke import Context
             from invoke_poetry import init_ns, task_matrix
             
             ns, task = init_ns("3.8")
             
-            def my_hook(c: Runner, name: str, tag: str):
+            def my_hook(c: Context, name: str, tag: str):
                 if name == "task_b":
                     raise Exception
                 c.run(f"echo 'name: {{name}} {{tag}}'")
@@ -189,12 +189,12 @@ class TestATaskMatrix:
 
         # language=python prefix="poetry_bin_str='';names=('')\nif True:" # IDE language injection
         task_source = f"""
-            from invoke import Runner
+            from invoke import Context
             from invoke_poetry import init_ns, task_matrix
             
             ns, task = init_ns("3.8")
             
-            def my_hook(c: Runner, name: str):
+            def my_hook(c: Context, name: str):
                 c.run(f"{poetry_bin_str} env use {{name}}")
                     
             @task(name="matrix")
