@@ -110,8 +110,8 @@ def test_matrix(c: Context) -> TaskMatrix:
 #
 # TESTS COVERAGE
 #
-@task_c(name="run_tests", default=True)
-def test_cov(
+@task_c(name="get", default=True)
+def test_cov_get(
     c: Context,
     python_version: Optional[str] = None,
     rollback_env: bool = True,
@@ -127,10 +127,16 @@ def test_cov(
     return result
 
 
-@task_c(name="open_report")
+@task_c(name="report")
 def test_cov_report(c: Context) -> Optional[Result]:
     """Open the latest coverage report."""
     return c.run(f"xdg-open {coverage_report_folder}/index.html")
+
+
+@task_c(name="publish")
+def test_cov_publish(c: Context) -> Optional[Result]:
+    """Publish the latest test coverage with coveralls."""
+    return c.run("coveralls")
 
 
 #
