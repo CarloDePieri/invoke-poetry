@@ -10,7 +10,7 @@ from invoke_poetry import (
     poetry_runner,
     task_matrix,
 )
-from invoke_poetry.logs import error
+from invoke_poetry.logs import error, info, ok
 
 supported_python_versions = ["3.8", "3.9", "3.10", "3.11"]
 default_python_version = supported_python_versions[0]
@@ -153,6 +153,99 @@ def publish(c: Context) -> Optional[Result]:
 def publish_test(c: Context) -> Optional[Result]:
     """Publish the project on testing pypi repository with poetry. A project build is needed first."""
     return c.run("poetry publish -r testpypi")
+
+
+#
+# PROJECT VERSION BUMP
+#
+def _get_project_version(c: Context, rule: Optional[str] = None) -> str:
+    """Return the poetry project version. If `rule` is provided, dry run a version bump and return the next version."""
+    command = "poetry version -s"
+    if rule:
+        command = f"poetry version -s --dry-run {rule}"
+    result = c.run(command, hide=True)
+    if result:
+        return result.stdout.rstrip("\n")
+    else:
+        error("Could not determine poetry project version.")
+        return ""
+
+
+def _interactively_get_next_version(rule: Optional[str]) -> str:
+    """Interactive prompt to determine the bump rule."""
+    options = [
+        "patch",
+        "minor",
+        "major",
+        "prepatch",
+        "preminor",
+        "premajor",
+        "prerelease",
+    ]
+    bump_rule = None
+    while not bump_rule:
+        if rule and rule in options:
+            bump_rule = rule
+        else:
+            if rule and rule not in options:
+                print(f"\n>> {rule} is not a valid rule!\n")
+            elif not rule:
+                print()
+
+            print(f"Available rules: {', '.join(options)}")
+            rule = input("Next version: ")
+    return bump_rule
+
+
+@task
+def bump_version(
+    c: Context, rule: Optional[str] = None, commit: bool = True, tag: bool = True
+) -> None:
+    """Interactive version bump for the project using poetry and, optionally, git (with a bump commit and a tag)."""
+    info("Version bump started")
+
+    current_version = _get_project_version(c)
+    print(f"\nCurrent version: {current_version}")
+
+    # Get valid project bump rule
+    bump_rule = _interactively_get_next_version(rule)
+
+    # Dry run to determine the next version
+    next_version = _get_project_version(c, bump_rule)
+
+    # Get confirmation
+    message = f"\n - Bumping version from {current_version} to {next_version} in pyproject.toml"
+    commit_message = f"bump version {current_version} -> {next_version}"
+    tag_name = f"version {next_version}"
+    if commit:
+        message += f"\n - Creating commit with message '{commit_message}'"
+    if tag:
+        message += f"\n - Creating tag v{next_version} named '{tag_name}'"
+    print(message)
+    answer = None
+    while answer not in ["y", "n", ""]:
+        answer = input("\nAre you sure? (Y/n) ").lower()
+    print()
+    if answer != "" and answer != "y":
+        error("Aborted!")
+
+    try:
+        # Actually bump the version
+        c.run(f"poetry version {bump_rule}", hide=True)
+        if commit:
+            # Create a commit
+            c.run("git add pyproject.toml", hide=True)
+            c.run(
+                f"git commit -m '{commit_message}'",
+                hide=True,
+            )
+        if tag:
+            # Create a tag
+            c.run(f"git tag -a v{next_version} -m '{tag_name}'", hide=True)
+        ok("Version bumped!")
+    except (Exception,) as e:
+        print(e)
+        error("Something went wrong while bumping version! Check git log and tags!")
 
 
 #
