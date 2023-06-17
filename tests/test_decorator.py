@@ -63,7 +63,7 @@ class TestACollectionDecorator:
                 from typing_extensions import reveal_type
             else:
                 from typing import reveal_type
-            from invoke_poetry import cast_to_task_type
+            from invoke_poetry import as_task
             from invoke_poetry.decorator import OverloadedDecoratorType
                 
             def get_decorator(collection: Collection) -> OverloadedDecoratorType:
@@ -74,18 +74,19 @@ class TestACollectionDecorator:
             type_task = get_decorator(ts)
             
             @type_task
-            def types_a(c: Context) -> int:
+            def types_a(_: Context) -> int:
                 reveal_type(docs_a)
                 reveal_type(docs_b)
                 return 42
                 
             @type_task(default=True)
-            def types_b(c: Context) -> str:
-                return "42" 
+            def types_b(_: Context) -> str:
+                return "42"
                 
             reveal_type(types_a)
             reveal_type(types_b)
-            reveal_type(cast_to_task_type(types_a))
+            reveal_type(as_task(types_a))
+            reveal_type(as_task(types_b))
             """
         add_test_file(source=self.task_source + task_source, debug_mode=False)
 
@@ -93,6 +94,7 @@ class TestACollectionDecorator:
         result = pytester.run(*inv_bin, "types.types-a")
         result.stderr.re_match_lines(
             [
+                r"Runtime type is 'Task'",
                 r"Runtime type is 'Task'",
                 r"Runtime type is 'Task'",
                 r"Runtime type is 'Task'",
@@ -112,13 +114,16 @@ class TestACollectionDecorator:
                 # def (c: invoke.context.Context, version: builtins.str =) -> Union[invoke.runners.Result, None]
                 r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.context\.Context\,\ version\:"
                 r"\ builtins\.str\ \=\)\ \-\>\ Union\[invoke\.runners\.Result\,\ None\]\"",
-                # def (c: invoke.context.Context) -> builtins.int
-                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.context\.Context\)\ \-\>\ builtins\.int\"",
-                # def (c: invoke.context.Context) -> builtins.str
-                r".*note\:\ Revealed\ type\ is\ \"def\ \(c\:\ invoke\.context\.Context\)\ \-\>\ builtins\.str\"",
-                # invoke.tasks.Task[def (c: invoke.context.Context) -> builtins.int]
-                r".*note\:\ Revealed\ type\ is\ \"invoke\.tasks\.Task\[def\ \(c\:\ invoke\.context\.Context\)"
+                # def (_: invoke.context.Context) -> builtins.int
+                r".*note\:\ Revealed\ type\ is\ \"def\ \(_\:\ invoke\.context\.Context\)\ \-\>\ builtins\.int\"",
+                # def (_: invoke.context.Context) -> builtins.str
+                r".*note\:\ Revealed\ type\ is\ \"def\ \(_\:\ invoke\.context\.Context\)\ \-\>\ builtins\.str\"",
+                # invoke.tasks.Task[def (_: invoke.context.Context) -> builtins.int]
+                r".*note\:\ Revealed\ type\ is\ \"invoke\.tasks\.Task\[def\ \(_\:\ invoke\.context\.Context\)"
                 r"\ \-\>\ builtins\.int\]\"",
+                # invoke.tasks.Task[def (_: invoke.context.Context) -> builtins.str]
+                r".*note\:\ Revealed\ type\ is\ \"invoke\.tasks\.Task\[def\ \(_\:\ invoke\.context\.Context\)"
+                r"\ \-\>\ builtins\.str\]\"",
             ]
         )
         assert result.ret == ExitCode.OK

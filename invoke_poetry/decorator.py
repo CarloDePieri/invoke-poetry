@@ -6,7 +6,7 @@
 # - the API for adding a task to a collection could be better (PR#527 https://github.com/pyinvoke/invoke/pull/527).
 #
 import sys
-from typing import Any, Callable, Optional, Protocol, TypeVar, Union, cast, overload
+from typing import Any, Callable, Protocol, TypeVar, Union, cast, overload
 
 from invoke import Collection, Task, task  # type: ignore[attr-defined]
 
@@ -54,11 +54,13 @@ class CollectionDecorator:
         ...
 
     @overload
-    def decorator(self, **kwargs: Any) -> Callable[[Callable[R, T]], Callable[R, T]]:
+    def decorator(
+        self, *args: Task[Callable[..., Any]], **kwargs: Any
+    ) -> Callable[[Callable[R, T]], Callable[R, T]]:
         ...
 
     def decorator(
-        self, __func: Optional[Callable[P, T]] = None, **kwargs: Any
+        self, *args: Union[Callable[P, T], Task[Callable[..., Any]]], **kwargs: Any
     ) -> Union[Callable[P, T], Callable[[Callable[R, T]], Callable[R, T]]]:
         """This method should be used directly to decorate target functions."""
 
@@ -70,11 +72,18 @@ class CollectionDecorator:
             # Return the task cast as a Callable to keep re-usability
             return cast(Callable[R, T], new_task)
 
-        if __func is not None:
+        if len(args) == 1 and not isinstance(args[0], Task):
             # @task
-            return inner(__func)
+            return inner(args[0])
         else:
             # @task(...)
+            if args:
+                # handle pre-task
+                if "pre" in kwargs:
+                    raise TypeError(
+                        "May not give *args and 'pre' kwarg simultaneously!"
+                    )
+                kwargs["pre"] = args
             return inner
 
 
@@ -88,10 +97,24 @@ class OverloadedDecoratorType(Protocol):
     # Protocols do not use an actual implementation, only need the overloaded `__call__`, so:
     # noinspection PyOverloads
     @overload
-    def __call__(self, **kwargs: Any) -> Callable[[Callable[R, T]], Callable[R, T]]:
+    def __call__(
+        self, *args: Task[Callable[..., Any]], **kwargs: Any
+    ) -> Callable[[Callable[R, T]], Callable[R, T]]:
         """Decorator type when being used as `@decorator(...)`."""
 
 
-def cast_to_task_type(func: F) -> Task[F]:
-    """Convenience used to cast a function decorated with `CollectionDecorator` back to a `invoke.Task`."""
+def as_task(func: F) -> Task[F]:
+    """Convenience used to cast a function decorated with `CollectionDecorator` back to a `invoke.Task`.
+
+    This is useful to maintain type correctness in certain cases, like when specifying pre tasks directly:
+
+    ```python
+    @task
+    def task_a():
+        pass
+
+    @task(as_task(a))  # task_a would be a Callable when using a CollectionDecorator, not a Task, hence the needed cast
+    def task_b():
+        pass
+    """
     return cast(Task[F], func)
