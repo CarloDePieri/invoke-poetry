@@ -12,14 +12,15 @@ from invoke_poetry import (
 )
 from invoke_poetry.logs import error, info, ok
 
-supported_python_versions = ["3.8", "3.9", "3.10", "3.11"]
-default_python_version = supported_python_versions[0]
-
-coverage_report_folder = "coverage/cov_html"
+# Project info
 project_folder = "invoke_poetry"
+supported_python_versions = ["3.8", "3.9", "3.10", "3.11"]
+
+default_python_version = supported_python_versions[0]
+coverage_report_folder = "coverage/cov_html"
 test_folder = "tests"
 
-
+# Task collections
 ns, task = init_ns(
     default_python_version=default_python_version,
     supported_python_versions=supported_python_versions,
@@ -86,6 +87,7 @@ def test_dev(
     with poetry_runner(c, python_env=python_version, rollback_env=rollback_env) as run:
         # This allows to pass additional parameter to pytest like this: inv test -- -m 'not slow'
         command = "pytest" + get_additional_args_string()
+        info(f"run: {command}")
         result = run(command)
     return result
 
@@ -142,20 +144,20 @@ def test_cov_publish(c: Context) -> Optional[Result]:
 #
 # PYPI
 #
-@task(name="build")
+@task_p(name="build")
 def build(c: Context) -> Optional[Result]:
     """Build the project with poetry. Artifact will be produced in the dist/ folder. This is needed to publish on
     pypi."""
     return c.run("poetry build")
 
 
-@task_p(name="pypi", default=True)
+@task_p(name="pypi", default=True, pre=[build])
 def publish(c: Context) -> Optional[Result]:
     """Publish the project on pypi with poetry. A project build is needed first."""
     return c.run("poetry publish")
 
 
-@task_p(name="pypi_test")
+@task_p(name="pypi_test", pre=[build])
 def publish_test(c: Context) -> Optional[Result]:
     """Publish the project on testing pypi repository with poetry. A project build is needed first."""
     return c.run("poetry publish -r testpypi")

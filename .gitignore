@@ -4,6 +4,7 @@
 .coverage*
 .coveralls.yml
 coverage
+dist
 .venvs
 **/.pytest_cache
 **/__pycache__
