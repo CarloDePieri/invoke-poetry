@@ -3,6 +3,7 @@
 .tests-pytester-temp
 .coverage*
 .coveralls.yml
+.secrets
 coverage
 dist
 .venvs

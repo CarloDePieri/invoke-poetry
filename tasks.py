@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional
 
 from invoke import Context, Result  # type: ignore[attr-defined]
@@ -10,7 +11,8 @@ from invoke_poetry import (
     poetry_runner,
     task_matrix,
 )
-from invoke_poetry.logs import error, info, ok
+from invoke_poetry.contrib.act import ActCachedJobController
+from invoke_poetry.logs import error, info, ok, warn
 
 # Project info
 project_folder = "invoke_poetry"
@@ -28,6 +30,7 @@ ns, task = init_ns(
 test_collection, task_t = add_sub_collection(ns, "test")
 _, task_c = add_sub_collection(test_collection, "coverage")
 _, task_p = add_sub_collection(ns, "publish")
+_, task_a = add_sub_collection(ns, "act")
 
 
 #
@@ -259,3 +262,69 @@ def bump_version(
 #
 # ACT
 #
+act_secrets_file = ".secrets"
+act_workflows_folder = Path(".github", "workflows")
+act_job_file = act_workflows_folder / "dev.yml"
+act_cache_file = act_workflows_folder / "cache.yml"
+
+act = ActCachedJobController(
+    job_file=act_job_file,
+    job_name="ci",
+    cache_file=act_cache_file,
+    cache_job_name="layer",
+    docker_cache_tag_prefix="carlodepieri/act-invoke-poetry",
+    docker_base_tag="catthehacker/ubuntu:act-latest",
+)
+
+
+@task_a(name="prod", default=True)
+def act_prod(c: Context, reuse: bool = False, rebuild: bool = False) -> None:
+    """TODO"""
+    cache_tag = act.get_cache_image(
+        context=c,
+        build_command=f"act -r -W {act_cache_file} -P ubuntu-latest={act.docker_base_tag}",
+        force_rebuild=rebuild,
+    )
+    info("Running the act workflow...")
+    reuse_str = ""
+    if reuse:
+        reuse_str = "--reuse"
+    c.run(
+        f"act {reuse_str} -P ubuntu-latest={cache_tag} --pull=false -W {act_job_file}",
+        pty=True,
+    )
+    ok("Done.")
+
+
+@task_a(name="shell")
+def act_shell(c: Context, cache: bool = False) -> None:
+    """TODO"""
+    if not cache:
+        act.open_shell_in_job_container(context=c, env_file=act_secrets_file)
+    else:
+        act.open_shell_in_cache_container(context=c, env_file=act_secrets_file)
+
+
+@task_a(name="clean")
+def act_clean(c: Context, cache: bool = False) -> None:
+    """TODO"""
+    dev_containers = act.delete_job_containers(c)
+    cache_containers = act.delete_cache_containers(c)
+    cache_images = None
+    if cache:
+        cache_images = act.delete_cache_images(c)
+    if dev_containers or cache_containers or cache_images:
+        if dev_containers:
+            ok("Containers deleted")
+        if cache_containers:
+            ok("Cache containers deleted")
+        if cache_images:
+            ok("Cache image deleted")
+    else:
+        warn("Nothing deleted")
+
+
+@task_a(name="status")
+def act_status(c: Context) -> None:
+    """TODO"""
+    act.print_status(c)
